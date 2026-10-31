@@ -1,41 +1,75 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="560" viewBox="0 0 1100 560">
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox="0 0 1100 620">
 <defs>
- <radialGradient id="halo"><stop offset="0" stop-color="#ffc866" stop-opacity=".34"/><stop offset=".5" stop-color="#f3ab4f" stop-opacity=".13"/><stop offset="1" stop-color="#f3ab4f" stop-opacity="0"/></radialGradient>
- <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff0ba"/><stop offset="1" stop-color="#ffd77e"/></linearGradient>
+  <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#0D172A"/><stop offset="1" stop-color="#050A14"/></linearGradient>
+  <linearGradient id="panel" x2=".8" y2="1"><stop stop-color="#23324A"/><stop offset="1" stop-color="#0C1525"/></linearGradient>
+  <linearGradient id="card" x2="1" y2="1"><stop stop-color="#2C405A" stop-opacity=".92"/><stop offset="1" stop-color="#18263B" stop-opacity=".94"/></linearGradient>
+  <linearGradient id="accent" x2=".9" y2="1"><stop stop-color="#FFE9AB"/><stop offset="1" stop-color="#E8A861"/></linearGradient>
+  <radialGradient id="glow"><stop stop-color="#FFD177" stop-opacity=".62"/><stop offset=".46" stop-color="#FFBA5F" stop-opacity=".16"/><stop offset="1" stop-color="#F8A54B" stop-opacity="0"/></radialGradient>
+  <filter id="shadow" x="-35%" y="-35%" width="170%" height="170%"><feGaussianBlur stdDeviation="19"/></filter>
+  <filter id="bloom" x="-35%" y="-35%" width="170%" height="170%"><feGaussianBlur stdDeviation="11"/></filter>
 </defs>
-<rect width="1100" height="560" rx="32" fill="#080e1a"/>
-<text x="60" y="76" fill="#f1f5f9" font-family="Segoe UI,Arial" font-size="42" font-weight="700">Лампик</text>
-<text x="278" y="76" fill="#8b9bb0" font-family="Segoe UI,Arial" font-size="20">/ мини-помощник для Windows</text>
-<rect x="77" y="112" width="385" height="398" rx="27" fill="#111824" stroke="#354358" stroke-width="2"/>
-<circle cx="117" cy="147" r="6" fill="#ffd279"/>
-<text x="135" y="154" fill="#f2f4f8" font-family="Segoe UI,Arial" font-size="20" font-weight="600">лампик</text>
-<text x="416" y="153" fill="#899aaf" font-family="Segoe UI,Arial" font-size="23" text-anchor="middle">•••</text>
-<circle cx="266" cy="266" r="151" fill="url(#halo)"/>
-<path d="M251 216 C189 218 188 296 224 322 C232 328 235 338 237 348 L295 348 C298 335 304 327 314 318 C352 276 329 212 269 216Z" fill="url(#glass)" stroke="#a28868" stroke-width="5"/>
-<ellipse cx="248" cy="280" rx="6" ry="9" fill="#362f35"/>
-<ellipse cx="286" cy="280" rx="6" ry="9" fill="#362f35"/>
-<ellipse cx="234" cy="295" rx="12" ry="6" fill="#f9a6a7"/>
-<ellipse cx="301" cy="295" rx="12" ry="6" fill="#f9a6a7"/>
-<path d="M257 302 Q267 314 279 301" stroke="#49342f" stroke-width="3" fill="none" stroke-linecap="round"/>
-<rect x="234" y="342" width="65" height="30" rx="8" fill="#cbd1d9" stroke="#7c8291" stroke-width="3"/>
-<path d="M242 352 H291 M242 362 H291" stroke="#8b929e" stroke-width="3"/>
-<text x="267" y="397" font-family="Segoe UI,Arial" font-weight="700" font-size="24" text-anchor="middle" fill="#f7f7fc">Я на связи ✦</text>
-<text x="267" y="427" font-family="Segoe UI,Arial" font-size="15" text-anchor="middle" fill="#a1afc4">Когда выключаем компьютер?</text>
-<rect x="96" y="446" width="347" height="45" rx="17" fill="#1e2b3c"/>
-<text x="114" y="475" fill="#93a4b8" font-family="Segoe UI,Arial" font-size="16">выключи через 40 минут...</text>
-<circle cx="417" cy="468" r="18" fill="#f6c56d"/>
-<text x="417" y="475" font-family="Segoe UI,Arial" font-size="22" text-anchor="middle" fill="#202737">↑</text>
-<rect x="527" y="215" width="503" height="180" rx="27" fill="#111824" stroke="#354358" stroke-width="2"/>
-<circle cx="558" cy="251" r="6" fill="#ffd279"/>
-<text x="576" y="258" fill="#f2f4f8" font-family="Segoe UI,Arial" font-size="20" font-weight="600">лампик</text>
-<text x="997" y="258" fill="#8496ad" font-family="Segoe UI,Arial" font-size="21" text-anchor="end">•••</text>
-<circle cx="572" cy="311" r="13" fill="#ffd77e"/>
-<rect x="563" y="320" width="18" height="9" rx="3" fill="#cbd1d9"/>
-<text x="607" y="318" fill="#f4f6f9" font-family="Segoe UI,Arial" font-size="38" font-weight="700">01:00:00</text>
-<text x="608" y="343" fill="#a1afc4" font-family="Segoe UI,Arial" font-size="17">Выключение через час</text>
-<rect x="823" y="291" width="184" height="51" rx="17" fill="#243448"/>
-<text x="915" y="322" fill="#f9d390" text-anchor="middle" font-family="Segoe UI,Arial" font-size="18">Отменить</text>
-<text x="527" y="433" fill="#eef2f8" font-family="Segoe UI,Arial" font-size="24" font-weight="700">Мини-режим</text>
-<text x="527" y="464" fill="#899caf" font-family="Segoe UI,Arial" font-size="17">Поверх окон · трей · горячие клавиши</text>
-<text x="60" y="533" fill="#8292a6" font-family="Segoe UI,Arial" font-size="15">Визуальный концепт MVP 0.3 — не скриншот работающей сборки</text>
+<rect width="1100" height="620" rx="22" fill="url(#bg)"/>
+<ellipse cx="330" cy="310" rx="250" ry="240" fill="#5474A9" opacity=".10" filter="url(#shadow)"/>
+<ellipse cx="793" cy="311" rx="265" ry="270" fill="#5D4B83" opacity=".08" filter="url(#shadow)"/>
+<text x="42" y="65" fill="#F1F5FC" font-family="Segoe UI,Arial" font-size="33" font-weight="700">Lampik</text>
+<text x="163" y="63" fill="#A4B5CD" font-family="Segoe UI,Arial" font-size="15">/ Modern glass UI · v0.4.1 concept</text>
+<g transform="translate(100 94)">
+ <rect x="12" y="14" width="345" height="481" rx="29" fill="#000000" opacity=".48" filter="url(#shadow)"/>
+ <rect width="345" height="481" rx="29" fill="url(#panel)" stroke="#60758F" stroke-opacity=".66" stroke-width="1.3"/>
+ <rect x="16" y="16" width="38" height="38" rx="13" fill="url(#accent)"/>
+ <circle cx="35" cy="33" r="11" fill="#FFF0BA" stroke="#AC8F60"/>
+ <circle cx="30" cy="33" r="1.8" fill="#4B3E36"/><circle cx="39" cy="33" r="1.8" fill="#4B3E36"/>
+ <rect x="30" y="43" width="10" height="5" rx="2" fill="#BFCBD3"/>
+ <text x="64" y="34" fill="#F2F6FF" font-family="Segoe UI,Arial" font-size="18" font-weight="700">Лампик</text>
+ <text x="64" y="49" fill="#A0B1CB" font-family="Segoe UI,Arial" font-size="9" letter-spacing="2">POWER COMPANION</text>
+ <g fill="#2B3E58" stroke="#586B83" stroke-opacity=".8"><rect x="232" y="17" width="28" height="31" rx="10"/><rect x="265" y="17" width="28" height="31" rx="10"/><rect x="298" y="17" width="28" height="31" rx="10"/></g>
+ <text x="246" y="38" text-anchor="middle" fill="#E5EBF7" font-size="16">⌄</text><text x="279" y="38" text-anchor="middle" fill="#E5EBF7" font-size="15">⚙</text><text x="312" y="39" text-anchor="middle" fill="#E5EBF7" font-size="19">×</text>
+ <rect x="15" y="68" width="315" height="210" rx="22" fill="url(#card)" stroke="#536B8C" stroke-opacity=".70"/>
+ <circle cx="172" cy="167" r="118" fill="url(#glow)"/>
+ <circle cx="172" cy="154" r="75" fill="#FFC968" opacity=".28" filter="url(#bloom)"/>
+ <path d="M172 101 C121 101 106 143 125 182 C133 198 149 209 152 222 L192 222 C196 208 215 196 222 177 C235 139 213 101 172 101 Z" fill="url(#accent)" stroke="#F7D18C" stroke-width="3"/>
+ <path d="M146 121 Q137 129 138 145" fill="none" stroke="#FFFFFF" stroke-opacity=".72" stroke-linecap="round" stroke-width="6"/>
+ <ellipse cx="154" cy="161" rx="4.8" ry="7.3" fill="#463937"/><ellipse cx="190" cy="161" rx="4.8" ry="7.3" fill="#463937"/>
+ <ellipse cx="140" cy="180" rx="9" ry="5" fill="#EA9995" opacity=".58"/><ellipse cx="203" cy="180" rx="9" ry="5" fill="#EA9995" opacity=".58"/>
+ <path d="M162 183 Q172 196 182 183" fill="none" stroke="#594039" stroke-width="3" stroke-linecap="round"/>
+ <rect x="151" y="218" width="42" height="27" rx="8" fill="#C7D1DB" stroke="#93A1AE" stroke-width="2"/>
+ <path d="M157 229 H187 M157 236 H187" stroke="#8D9CA8" stroke-width="2"/>
+ <text x="25" y="322" fill="#FFDEA0" font-family="Segoe UI,Arial" font-size="31" font-weight="700">00:40:00</text>
+ <rect x="241" y="290" width="86" height="29" rx="12" fill="#273A52" stroke="#445D79"/>
+ <circle cx="251" cy="304" r="3" fill="#F2D28E"/><text x="262" y="309" fill="#B5C7DD" font-family="Segoe UI,Arial" font-size="10">OFFLINE</text>
+ <text x="25" y="363" fill="#A9BBD1" font-family="Segoe UI,Arial" font-size="15">Выключение через 40 минут</text>
+ <rect x="15" y="390" width="315" height="58" rx="17" fill="#25374F" stroke="#60738B"/>
+ <text x="31" y="425" fill="#96A9C2" font-family="Segoe UI,Arial" font-size="14">Напиши команду...</text>
+ <rect x="274" y="401" width="44" height="37" rx="13" fill="url(#accent)"/>
+ <text x="296" y="429" text-anchor="middle" font-family="Segoe UI,Arial" font-size="28" fill="#3A2C22">↗</text>
+</g>
+<g transform="translate(538 111)">
+ <rect x="10" y="14" width="454" height="440" rx="30" fill="#000000" opacity=".48" filter="url(#shadow)"/>
+ <rect width="454" height="440" rx="27" fill="url(#panel)" stroke="#62758E" stroke-opacity=".7"/>
+ <rect x="19" y="20" width="47" height="47" rx="16" fill="url(#accent)"/>
+ <text x="42" y="55" fill="#52351D" font-family="Segoe UI,Arial" font-size="32" text-anchor="middle">✦</text>
+ <text x="81" y="43" fill="#F3F6FD" font-family="Segoe UI,Arial" font-size="23" font-weight="700">Настройки</text>
+ <text x="81" y="61" fill="#9AACBF" font-family="Segoe UI,Arial" font-size="10" letter-spacing="2">L A M P I K   /   P R E F E R E N C E S</text>
+ <rect x="19" y="91" width="416" height="170" rx="19" fill="url(#card)" stroke="#536984"/>
+ <text x="38" y="122" fill="#EEF4FC" font-family="Segoe UI,Arial" font-size="16" font-weight="700">Внешний вид</text>
+ <text x="38" y="150" fill="#ABBCD1" font-family="Segoe UI,Arial" font-size="12">Язык / Language</text>
+ <rect x="38" y="163" width="166" height="38" rx="12" fill="url(#accent)"/>
+ <rect x="212" y="163" width="166" height="38" rx="12" fill="#304258" stroke="#62758F"/>
+ <text x="121" y="187" text-anchor="middle" fill="#38291B" font-family="Segoe UI,Arial" font-size="13" font-weight="700">Русский</text>
+ <text x="295" y="187" text-anchor="middle" fill="#EBF1FB" font-family="Segoe UI,Arial" font-size="13">English</text>
+ <text x="38" y="237" fill="#D1DDEB" font-family="Segoe UI,Arial" font-size="13">Тёмная тема</text>
+ <rect x="338" y="213" width="71" height="32" rx="13" fill="url(#accent)"/>
+ <text x="373" y="234" text-anchor="middle" fill="#38291B" font-family="Segoe UI,Arial" font-size="11" font-weight="700">ON</text>
+ <rect x="19" y="275" width="416" height="108" rx="19" fill="url(#card)" stroke="#536984"/>
+ <text x="38" y="303" fill="#F0F3FA" font-family="Segoe UI,Arial" font-size="16" font-weight="700">Горячие клавиши</text>
+ <text x="38" y="322" fill="#95A8C2" font-family="Segoe UI,Arial" font-size="12">Назначение таймеров из любого окна</text>
+ <rect x="38" y="337" width="42" height="30" rx="10" fill="url(#accent)"/><text x="59" y="357" fill="#3A2B20" font-size="13" text-anchor="middle">✓</text>
+ <rect x="90" y="337" width="220" height="30" rx="10" fill="#16263C" stroke="#526781"/><text x="103" y="357" fill="#E4ECF7" font-family="Segoe UI,Arial" font-size="12">Ctrl+Alt+1</text>
+ <rect x="319" y="337" width="91" height="30" rx="10" fill="#16263C" stroke="#526781"/><text x="365" y="357" text-anchor="middle" fill="#E4ECF7" font-family="Segoe UI,Arial" font-size="12">1 мин</text>
+ <rect x="259" y="396" width="90" height="31" rx="12" fill="#30435E" stroke="#657991"/>
+ <text x="304" y="416" fill="#EDF2F9" font-family="Segoe UI,Arial" font-size="13" text-anchor="middle">Отмена</text>
+ <rect x="357" y="396" width="78" height="31" rx="12" fill="url(#accent)"/>
+ <text x="396" y="416" fill="#36291E" font-family="Segoe UI,Arial" font-size="13" font-weight="700" text-anchor="middle">Сохранить</text>
+</g>
+<text x="44" y="594" fill="#8297B3" font-family="Segoe UI,Arial" font-size="13">Concept visualization of the current UI direction — not a screenshot of an executed Windows build</text>
 </svg>
