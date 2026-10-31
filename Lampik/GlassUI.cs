@@ -15,6 +15,8 @@ using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
 using FontFamily = System.Windows.Media.FontFamily;
 using Cursors = System.Windows.Input.Cursors;
+using Binding = System.Windows.Data.Binding;
+using ButtonBase = System.Windows.Controls.Primitives.ButtonBase;
 
 namespace Lampik;
 
