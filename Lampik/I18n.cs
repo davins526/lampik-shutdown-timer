@@ -17,6 +17,8 @@ internal static class I18n
         ["settings"] = ("Настройки", "Settings"),
         ["hide"] = ("Скрыть в трей", "Minimize to tray"),
         ["mini"] = ("Компактный режим", "Compact mode"),
+        ["miniHint"] = ("Быстрая команда · Ctrl+Alt+L", "Quick command · Ctrl+Alt+L"),
+        ["inputPlaceholder"] = ("Напиши команду...", "Type a command..."),
         ["send"] = ("Отправить команду", "Send command"),
         ["example"] = ("Например: выключи через 30 минут", "E.g. shut down in 30 minutes"),
         ["cancelTimer"] = ("Отменить таймер", "Cancel timer"),
