@@ -23,6 +23,10 @@ using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
 using Cursors = System.Windows.Input.Cursors;
+using CheckBox = System.Windows.Controls.CheckBox;
+using Orientation = System.Windows.Controls.Orientation;
+using ColorConverter = System.Windows.Media.ColorConverter;
+using Path = System.IO.Path;
 
 namespace Lampik;
 
@@ -257,7 +261,7 @@ internal sealed class LampikWindow : Window
         DockPanel.SetDock(title, Dock.Left);
         header.Children.Add(title);
 
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = System.Windows.HorizontalAlignment.Right };
         actions.Children.Add(Button(mini ? "▴" : "▾", () => { mini = !mini; Rebuild(); Refresh(); }, "Компактный режим"));
         actions.Children.Add(Button("⚙", OpenSettings, "Настройки горячих клавиш"));
         actions.Children.Add(Button("×", HideToTray, "Скрыть в трей"));
@@ -306,7 +310,7 @@ internal sealed class LampikWindow : Window
 
             countdownLabel = Text("— : —", 22, FontWeights.Bold);
             countdownLabel.Foreground = Brush("#f5d392", "#5f6178");
-            countdownLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            countdownLabel.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
             countdownLabel.Margin = new Thickness(0, -1, 0, 2);
             stack.Children.Add(countdownLabel);
         }
@@ -314,7 +318,7 @@ internal sealed class LampikWindow : Window
         {
             countdownLabel = Text("— : —", 18, FontWeights.Bold);
             countdownLabel.Foreground = Brush("#f5d392", "#5f6178");
-            countdownLabel.HorizontalAlignment = HorizontalAlignment.Left;
+            countdownLabel.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
             countdownLabel.Margin = new Thickness(0, 6, 0, 4);
             stack.Children.Add(countdownLabel);
         }
