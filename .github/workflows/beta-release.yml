@@ -25,6 +25,12 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Run bilingual command parser smoke tests
+        shell: pwsh
+        run: |
+          dotnet run --project tests/Lampik.ParserTests/Lampik.ParserTests.csproj --configuration Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Build and publish Windows x64 executable
         shell: pwsh
         run: |
@@ -46,17 +52,17 @@ jobs:
           $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
           & $compiler installer\Lampik.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (!(Test-Path release-installer/Lampik-Setup-0.3.0-beta.1-win-x64.exe)) {
+          if (!(Test-Path release-installer/Lampik-Setup-0.3.0-beta.2-win-x64.exe)) {
             throw 'Setup EXE was not produced'
           }
 
       - name: Save build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Lampik-v0.3.0-beta.1-win-x64
+          name: Lampik-v0.3.0-beta.2-win-x64
           path: |
             release/Lampik.exe
-            release-installer/Lampik-Setup-0.3.0-beta.1-win-x64.exe
+            release-installer/Lampik-Setup-0.3.0-beta.2-win-x64.exe
           if-no-files-found: error
           retention-days: 30
 
@@ -65,10 +71,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'v0.3.0-beta.1'
+          $tag = 'v0.3.0-beta.2'
           $assets = @(
             'release/Lampik.exe',
-            'release-installer/Lampik-Setup-0.3.0-beta.1-win-x64.exe'
+            'release-installer/Lampik-Setup-0.3.0-beta.2-win-x64.exe'
           )
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
@@ -77,6 +83,6 @@ jobs:
             gh release edit $tag --prerelease --notes-file RELEASE_NOTES.md
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } else {
-            gh release create $tag @assets --prerelease --title 'Лампик v0.3.0 — Beta 1' --notes-file RELEASE_NOTES.md --target "$env:GITHUB_SHA"
+            gh release create $tag @assets --prerelease --title 'Lampik v0.3.0 — Beta 2 (RU/EN)' --notes-file RELEASE_NOTES.md --target "$env:GITHUB_SHA"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
