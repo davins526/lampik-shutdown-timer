@@ -619,6 +619,7 @@ internal sealed class LampikWindow : Window
     {
         Show();
         WindowState = WindowState.Normal;
+        mascot?.ResumeAnimations();
         Activate();
         FocusInput();
     }
@@ -626,6 +627,7 @@ internal sealed class LampikWindow : Window
     void HideToTray()
     {
         quickMode = false;
+        mascot?.PauseAnimations();
         Hide();
         if (target is not null)
             tray?.ShowBalloonTip(2400, T("trayActiveTitle"), T("trayActiveBody"), Forms.ToolTipIcon.Info);
