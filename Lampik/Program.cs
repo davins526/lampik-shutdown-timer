@@ -24,6 +24,7 @@ using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
 using Cursors = System.Windows.Input.Cursors;
 using CheckBox = System.Windows.Controls.CheckBox;
+using ComboBox = System.Windows.Controls.ComboBox;
 using Orientation = System.Windows.Controls.Orientation;
 using ColorConverter = System.Windows.Media.ColorConverter;
 using Path = System.IO.Path;
@@ -49,6 +50,8 @@ public sealed class KeyPreset
 public sealed class Preferences
 {
     public bool DarkTheme { get; set; } = true;
+    public string Language { get; set; } =
+        CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ru" ? "ru" : "en";
     public bool AlwaysOnTop { get; set; } = true;
     public List<KeyPreset> Hotkeys { get; set; } = Defaults();
     public static List<KeyPreset> Defaults() => new()
@@ -64,71 +67,108 @@ internal record PowerCommand(PowerAction Action, DateTime Target);
 
 internal static class Commands
 {
-    static readonly Dictionary<string, string> Words = new()
+    private static readonly Dictionary<string, string> NumberWords = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["одну"] = "1", ["один"] = "1", ["одна"] = "1",
-        ["две"] = "2", ["два"] = "2", ["три"] = "3",
-        ["четыре"] = "4", ["пять"] = "5", ["шесть"] = "6",
-        ["семь"] = "7", ["восемь"] = "8", ["девять"] = "9",
-        ["десять"] = "10", ["пятнадцать"] = "15",
-        ["двадцать"] = "20", ["тридцать"] = "30", ["сорок"] = "40",
-        ["пятьдесят"] = "50", ["шестьдесят"] = "60"
+        ["одну"] = "1", ["один"] = "1", ["одна"] = "1", ["две"] = "2", ["два"] = "2",
+        ["три"] = "3", ["четыре"] = "4", ["пять"] = "5", ["шесть"] = "6",
+        ["семь"] = "7", ["восемь"] = "8", ["девять"] = "9", ["десять"] = "10",
+        ["пятнадцать"] = "15", ["двадцать"] = "20", ["тридцать"] = "30",
+        ["сорок"] = "40", ["пятьдесят"] = "50", ["шестьдесят"] = "60",
+        ["one"] = "1", ["two"] = "2", ["three"] = "3", ["four"] = "4",
+        ["five"] = "5", ["six"] = "6", ["seven"] = "7", ["eight"] = "8",
+        ["nine"] = "9", ["ten"] = "10", ["fifteen"] = "15", ["twenty"] = "20",
+        ["thirty"] = "30", ["forty"] = "40", ["fifty"] = "50", ["sixty"] = "60",
     };
-    public static bool Parse(string text, DateTime now, out PowerCommand? command, out string response)
+
+    public static bool Parse(string text, DateTime now, string language,
+        out PowerCommand? command, out string response)
     {
         command = null;
         response = "";
         text = text.ToLowerInvariant().Replace('ё', 'е').Trim();
-        if (Regex.IsMatch(text, @"отмен|сброс|стоп|не надо")) { response = "cancel"; return true; }
-        if (Regex.IsMatch(text, @"статус|сколько осталось|когда сработает")) { response = "status"; return true; }
-        if (Regex.IsMatch(text, @"помощь|help|что умеешь")) { response = "help"; return true; }
-        var action = Regex.IsMatch(text, @"перезагру|рестарт|restart") ? PowerAction.Restart :
-            Regex.IsMatch(text, @"гибернац|гибернир|hibernate") ? PowerAction.Hibernate :
-            Regex.IsMatch(text, @"\bсон\b|\bсна\b|усып|sleep") ? PowerAction.Sleep : PowerAction.Shutdown;
-        DateTime target;
-        var absolute = Regex.Match(text, @"(?<!\d)(?<h>[01]?\d|2[0-3]):(?<m>[0-5]\d)(?!\d)");
-        if (absolute.Success)
+        if (Regex.IsMatch(text, @"отмен|сброс|стоп|не надо|\b(cancel|stop|abort)\b"))
         {
-            target = now.Date.AddHours(int.Parse(absolute.Groups["h"].Value, CultureInfo.InvariantCulture))
-                .AddMinutes(int.Parse(absolute.Groups["m"].Value, CultureInfo.InvariantCulture));
-            if (text.Contains("завтра")) target = target.AddDays(1);
+            response = "cancel";
+            return true;
+        }
+        if (Regex.IsMatch(text, @"статус|сколько осталось|когда сработает|\b(status|time left|remaining)\b"))
+        {
+            response = "status";
+            return true;
+        }
+        if (Regex.IsMatch(text, @"помощь|что умеешь|\b(help|commands)\b"))
+        {
+            response = "help";
+            return true;
+        }
+
+        var action = Regex.IsMatch(text, @"перезагру|рестарт|\b(restart|reboot)\b") ? PowerAction.Restart :
+            Regex.IsMatch(text, @"гибернац|гибернир|\b(hibernate|hibernation)\b") ? PowerAction.Hibernate :
+            Regex.IsMatch(text, @"\b(сон|сна|sleep)\b|усып") ? PowerAction.Sleep :
+            PowerAction.Shutdown;
+
+        DateTime target;
+        // "at 23:30", "в 23:30", "at 11:30 pm"
+        var absolute = Regex.Match(text, @"(?<!\d)(?<h>[01]?\d|2[0-3]):(?<m>[0-5]\d)\s*(?<ampm>am|pm)?(?!\w)");
+        var twelveHour = !absolute.Success ? Regex.Match(text, @"\b(?:at\s+)?(?<h>1[0-2]|0?[1-9])\s*(?<ampm>am|pm)\b") : Match.Empty;
+        if (absolute.Success || twelveHour.Success)
+        {
+            var match = absolute.Success ? absolute : twelveHour;
+            int hour = int.Parse(match.Groups["h"].Value, CultureInfo.InvariantCulture);
+            int minute = match.Groups["m"].Success
+                ? int.Parse(match.Groups["m"].Value, CultureInfo.InvariantCulture) : 0;
+            string ampm = match.Groups["ampm"].Value;
+            if (ampm == "pm" && hour < 12) hour += 12;
+            if (ampm == "am" && hour == 12) hour = 0;
+            target = now.Date.AddHours(hour).AddMinutes(minute);
+            if (Regex.IsMatch(text, @"завтра|\btomorrow\b"))
+                target = target.AddDays(1);
             else if (target <= now)
             {
-                if (text.Contains("сегодня")) { response = "Это время сегодня уже прошло."; return false; }
+                if (Regex.IsMatch(text, @"сегодня|\btoday\b"))
+                {
+                    response = I18n.T(language, "timePast");
+                    return false;
+                }
                 target = target.AddDays(1);
             }
         }
         else
         {
-            text = Regex.Replace(text, @"\b(" + string.Join("|", Words.Keys.OrderByDescending(x => x.Length)) + @")\b",
-                m => Words[m.Value]);
+            // Convert words into numbers, including common half-hour expressions.
+            text = Regex.Replace(text, @"полтора\s+часа", "1.5 час");
+            text = Regex.Replace(text, @"полчаса|пол\s+часа|\bhalf\s+an?\s+hour\b", "0.5 hour");
+            text = Regex.Replace(text, @"\b(an?|the)\s+(?=hours?|minutes?|seconds?\b)", "1 ");
+            text = Regex.Replace(text, @"\bчерез\s+час\b", "через 1 час");
+            text = Regex.Replace(text, @"\bчерез\s+минуту\b", "через 1 минуту");
+            text = Regex.Replace(text, @"\b(" + string.Join("|", NumberWords.Keys.OrderByDescending(k => k.Length)) + @")\b",
+                m => NumberWords[m.Value]);
+
             double seconds = 0;
-            if (text.Contains("полтора час")) seconds += 5400;
-            if (text.Contains("полчаса") || text.Contains("пол часа")) seconds += 1800;
-            foreach (Match m in Regex.Matches(text, @"(?<n>\d+(?:[.,]\d+)?)\s*(?<u>час(?:ов|а)?|ч|минут(?:у|ы|а)?|мин|м|секунд(?:у|ы|а)?|сек|с)\b"))
+            const string pattern = @"(?<n>\d+(?:[.,]\d+)?)\s*(?<u>час(?:ов|а)?|ч|минут(?:у|ы|а)?|мин|м|секунд(?:у|ы|а)?|сек|с|hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)\b";
+            foreach (Match match in Regex.Matches(text, pattern))
             {
-                var n = double.Parse(m.Groups["n"].Value.Replace(',', '.'), CultureInfo.InvariantCulture);
-                var u = m.Groups["u"].Value;
-                seconds += n * (u.StartsWith("час") || u == "ч" ? 3600 : u.StartsWith("м") ? 60 : 1);
+                var n = double.Parse(match.Groups["n"].Value.Replace(',', '.'), CultureInfo.InvariantCulture);
+                var unit = match.Groups["u"].Value;
+                seconds += n * (
+                    unit.StartsWith("час") || unit is "ч" or "h" || unit.StartsWith("hour") || unit.StartsWith("hr")
+                        ? 3600 :
+                    unit.StartsWith("м") || unit is "m" || unit.StartsWith("min")
+                        ? 60 : 1);
             }
             if (seconds == 0)
             {
-                if (Regex.IsMatch(text, @"через\s+час\b")) seconds = 3600;
-                else if (Regex.IsMatch(text, @"через\s+минуту\b")) seconds = 60;
-                else
-                {
-                    var shorthand = Regex.Match(text, @"через\s+(\d+)\b");
-                    if (shorthand.Success) seconds = int.Parse(shorthand.Groups[1].Value) * 60;
-                }
+                var shorthand = Regex.Match(text, @"(?:через|\bin\b)\s+(\d+)\b");
+                if (shorthand.Success) seconds = int.Parse(shorthand.Groups[1].Value, CultureInfo.InvariantCulture) * 60;
             }
             if (seconds < 10 || seconds > 30 * 24 * 3600)
             {
-                response = seconds == 0 ? "Напиши, например: «выключи через 40 минут» или «в 23:30».": 
-                    "Доступен интервал от 10 секунд до 30 дней.";
+                response = I18n.T(language, seconds == 0 ? "prompt" : "range");
                 return false;
             }
             target = now.AddSeconds(seconds);
         }
+
         command = new PowerCommand(action, target);
         return true;
     }
@@ -177,7 +217,7 @@ internal sealed class LampikWindow : Window
     DateTime? target;
     PowerAction action;
     bool warned, exiting, mini;
-    string message = "Когда выключаем компьютер?";
+    string message = "";
     TextBox? input;
     TextBlock? messageLabel, countdownLabel;
     Ellipse? halo;
@@ -192,6 +232,8 @@ internal sealed class LampikWindow : Window
         try { prefs = JsonSerializer.Deserialize<Preferences>(File.ReadAllText(settingsFile)) ?? new Preferences(); }
         catch { prefs = new Preferences(); }
         prefs.Hotkeys ??= Preferences.Defaults();
+        prefs.Language = I18n.Language(prefs.Language);
+        message = T("question");
         Width = 300; Height = 324; MinWidth = MaxWidth = 300;
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
@@ -199,7 +241,7 @@ internal sealed class LampikWindow : Window
         ResizeMode = ResizeMode.NoResize;
         ShowInTaskbar = false;
         Topmost = prefs.AlwaysOnTop;
-        Title = "Лампик — таймер выключения";
+        Title = T("title");
         Rebuild();
         SourceInitialized += (_, _) =>
         {
@@ -221,6 +263,8 @@ internal sealed class LampikWindow : Window
         InitTray();
         Refresh();
     }
+
+    string T(string key, params object[] args) => I18n.T(prefs.Language, key, args);
 
     Brush Brush(string dark, string light) =>
         new SolidColorBrush((Color)ColorConverter.ConvertFromString(prefs.DarkTheme ? dark : light));
@@ -256,15 +300,15 @@ internal sealed class LampikWindow : Window
 
         var header = new DockPanel { Height = 31 };
         header.MouseLeftButtonDown += (_, e) => { if (e.LeftButton == MouseButtonState.Pressed) DragMove(); };
-        var title = Text("●  Лампик", 14, FontWeights.Bold);
+        var title = Text("●  " + T("appName"), 14, FontWeights.Bold);
         title.Foreground = Brush("#ffdb90", "#414a62");
         DockPanel.SetDock(title, Dock.Left);
         header.Children.Add(title);
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = System.Windows.HorizontalAlignment.Right };
-        actions.Children.Add(Button(mini ? "▴" : "▾", () => { mini = !mini; Rebuild(); Refresh(); }, "Компактный режим"));
-        actions.Children.Add(Button("⚙", OpenSettings, "Настройки горячих клавиш"));
-        actions.Children.Add(Button("×", HideToTray, "Скрыть в трей"));
+        actions.Children.Add(Button(mini ? "▴" : "▾", () => { mini = !mini; Rebuild(); Refresh(); }, T("mini")));
+        actions.Children.Add(Button("⚙", OpenSettings, T("settings")));
+        actions.Children.Add(Button("×", HideToTray, T("hide")));
         DockPanel.SetDock(actions, Dock.Right);
         header.Children.Add(actions);
         stack.Children.Add(header);
@@ -340,14 +384,14 @@ internal sealed class LampikWindow : Window
             input = new TextBox
             {
                 FontSize = 12, Height = 35, Padding = new Thickness(10, 8, 8, 0),
-                Text = "", ToolTip = "Например: выключи через 30 минут",
+                Text = "", ToolTip = T("example"),
                 Foreground = Brush("#f0f3fa", "#2b3445"),
                 Background = Brush("#1d2938", "#eef1f6"),
                 BorderBrush = Brush("#303f50", "#d5dce7"), BorderThickness = new Thickness(1)
             };
             input.KeyDown += (_, e) => { if (e.Key == Key.Enter) { e.Handled = true; Submit(); } };
             bar.Children.Add(input);
-            var send = Button("↗", Submit, "Отправить команду");
+            var send = Button("↗", Submit, T("send"));
             send.Width = 37; send.Height = 35; send.Margin = new Thickness(6, 0, 0, 0);
             send.Background = Brush("#e8bb70", "#7570e7");
             send.Foreground = Brush("#222a35", "#ffffff");
@@ -356,7 +400,7 @@ internal sealed class LampikWindow : Window
         }
         else
         {
-            var cancel = Button("Отменить таймер", () => CancelTimer(true));
+            var cancel = Button(T("cancelTimer"), () => CancelTimer(true));
             cancel.Width = 252; cancel.Height = 27; cancel.FontSize = 11;
             cancel.Margin = new Thickness(0);
             stack.Children.Add(cancel);
@@ -369,19 +413,19 @@ internal sealed class LampikWindow : Window
     {
         if (messageLabel is not null) messageLabel.Text = message;
         if (countdownLabel is not null)
-            countdownLabel.Text = target is null ? (mini ? "Лампик на связи" : "— : —")
+            countdownLabel.Text = target is null ? (mini ? T("idle") : "— : —")
                 : TimeLeft(target.Value);
         if (tray is not null)
-            tray.Text = target is null ? "Лампик — таймер выключения"
-                : "Лампик — " + TimeLeft(target.Value);
+            tray.Text = target is null ? T("title")
+                : T("appName") + " — " + TimeLeft(target.Value);
     }
 
-    static string TimeLeft(DateTime deadline)
+    string TimeLeft(DateTime deadline)
     {
         var left = deadline - DateTime.Now;
         if (left < TimeSpan.Zero) left = TimeSpan.Zero;
         return left.TotalDays >= 1
-            ? $"{(int)left.TotalDays}д {left.Hours:00}:{left.Minutes:00}:{left.Seconds:00}"
+            ? $"{(int)left.TotalDays}{(prefs.Language == "en" ? "d" : "д")} {left.Hours:00}:{left.Minutes:00}:{left.Seconds:00}"
             : $"{(int)left.TotalHours:00}:{left.Minutes:00}:{left.Seconds:00}";
     }
 
@@ -390,26 +434,26 @@ internal sealed class LampikWindow : Window
         var text = input?.Text.Trim() ?? "";
         if (text.Length == 0) return;
         if (input is not null) input.Clear();
-        if (!Commands.Parse(text, DateTime.Now, out var command, out var reply))
+        if (!Commands.Parse(text, DateTime.Now, prefs.Language, out var command, out var reply))
         { message = reply; Refresh(); return; }
         if (reply == "cancel") { CancelTimer(true); return; }
         if (reply == "help")
-        { message = "Напиши: «выключи через час», «сон через 20 минут» или «отмени»."; Refresh(); return; }
+        { message = T("help"); Refresh(); return; }
         if (reply == "status")
-        { message = target is null ? "Таймер пока не запущен" : "Запланировано на " + target.Value.ToString("HH:mm"); Refresh(); return; }
+        { message = target is null ? T("noTimer") : T("statusScheduled", target.Value.ToString("HH:mm")); Refresh(); return; }
         if (command is not null) Schedule(command.Action, command.Target);
     }
 
-    static string Label(PowerAction a) => a switch
+    string Label(PowerAction a) => a switch
     {
-        PowerAction.Restart => "Перезагрузка", PowerAction.Sleep => "Сон",
-        PowerAction.Hibernate => "Гибернация", _ => "Выключение"
+        PowerAction.Restart => T("restart"), PowerAction.Sleep => T("sleep"),
+        PowerAction.Hibernate => T("hibernate"), _ => T("shutdown")
     };
 
     void Schedule(PowerAction a, DateTime deadline)
     {
         action = a; target = deadline; warned = false;
-        message = Label(a) + " в " + deadline.ToString("HH:mm:ss") + ". Ctrl+Alt+X — отмена.";
+        message = T("scheduled", Label(a), deadline.ToString("HH:mm:ss"));
         Refresh();
         WarnSoon();
     }
@@ -420,7 +464,7 @@ internal sealed class LampikWindow : Window
         {
             target = null;
             if (DateTime.Now - deadline < TimeSpan.FromMinutes(2)) ExecutePowerAction(action);
-            else message = "Таймер просрочен после сна Windows и отменён.";
+            else message = T("late");
         }
         WarnSoon();
         Refresh();
@@ -430,15 +474,15 @@ internal sealed class LampikWindow : Window
     {
         if (warned || target is not DateTime deadline || deadline - DateTime.Now > TimeSpan.FromMinutes(1)) return;
         warned = true;
-        tray?.ShowBalloonTip(7000, "Лампик — скоро выключение",
-            Label(action) + " менее чем через минуту. Ctrl+Alt+X — отменить.", Forms.ToolTipIcon.Warning);
+        tray?.ShowBalloonTip(7000, T("soonTitle"),
+            T("soonBody", Label(action)), Forms.ToolTipIcon.Warning);
     }
 
     void CancelTimer(bool tell)
     {
         bool active = target is not null;
         target = null; warned = false;
-        if (tell) message = active ? "Таймер отменён." : "Таймер сейчас не запущен.";
+        if (tell) message = active ? T("cancelled") : T("cancelNoTimer");
         Refresh();
     }
 
@@ -454,33 +498,41 @@ internal sealed class LampikWindow : Window
                     Arguments = a == PowerAction.Shutdown ? "/s /t 0" : "/r /t 0",
                     UseShellExecute = false, CreateNoWindow = true
                 });
-                if (p is null) throw new InvalidOperationException("Windows не приняла команду.");
+                if (p is null) throw new InvalidOperationException(T("windowsRejected"));
             }
             else if (!Forms.Application.SetSuspendState(
                 a == PowerAction.Sleep ? Forms.PowerState.Suspend : Forms.PowerState.Hibernate, false, false))
-                throw new InvalidOperationException("Этот режим питания недоступен.");
-            message = "Команда передана Windows.";
+                throw new InvalidOperationException(T("powerUnavailable"));
+            message = T("commandSent");
         }
         catch (Exception ex)
         {
-            message = "Ошибка Windows: " + ex.Message;
+            message = T("powerError", ex.Message);
             Restore();
-            System.Windows.MessageBox.Show(ex.Message, "Лампик", MessageBoxButton.OK, MessageBoxImage.Warning);
+            System.Windows.MessageBox.Show(ex.Message, T("winError"), MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
     void InitTray()
     {
-        tray = new Forms.NotifyIcon { Text = "Лампик — таймер выключения",
+        tray = new Forms.NotifyIcon { Text = T("title"),
             Icon = System.Drawing.SystemIcons.Information, Visible = true };
-        var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("Открыть", null, (_, _) => Dispatcher.Invoke(Restore));
-        menu.Items.Add("Отменить таймер", null, (_, _) => Dispatcher.Invoke(() => CancelTimer(true)));
-        menu.Items.Add("Настройки", null, (_, _) => Dispatcher.Invoke(OpenSettings));
-        menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add("Выход", null, (_, _) => Dispatcher.Invoke(Quit));
-        tray.ContextMenuStrip = menu;
+        UpdateTrayMenu();
         tray.DoubleClick += (_, _) => Dispatcher.Invoke(Restore);
+    }
+
+    void UpdateTrayMenu()
+    {
+        if (tray is null) return;
+        var old = tray.ContextMenuStrip;
+        var menu = new Forms.ContextMenuStrip();
+        menu.Items.Add(T("open"), null, (_, _) => Dispatcher.Invoke(Restore));
+        menu.Items.Add(T("cancelTimer"), null, (_, _) => Dispatcher.Invoke(() => CancelTimer(true)));
+        menu.Items.Add(T("settings"), null, (_, _) => Dispatcher.Invoke(OpenSettings));
+        menu.Items.Add(new Forms.ToolStripSeparator());
+        menu.Items.Add(T("exit"), null, (_, _) => Dispatcher.Invoke(Quit));
+        tray.ContextMenuStrip = menu;
+        old?.Dispose();
     }
 
     void Restore()
@@ -492,13 +544,13 @@ internal sealed class LampikWindow : Window
     {
         Hide();
         if (target is not null)
-            tray?.ShowBalloonTip(2400, "Лампик продолжает работать", "Таймер активен в трее.", Forms.ToolTipIcon.Info);
+            tray?.ShowBalloonTip(2400, T("trayActiveTitle"), T("trayActiveBody"), Forms.ToolTipIcon.Info);
     }
 
     void Quit()
     {
         if (target is not null && System.Windows.MessageBox.Show(
-            "Таймер будет отменён. Завершить Лампика?", "Лампик",
+            T("quitConfirm"), T("appName"),
             MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         exiting = true; Close();
     }
@@ -522,7 +574,7 @@ internal sealed class LampikWindow : Window
         Restore();
         var dialog = new Window
         {
-            Title = "Настройки Лампика", Width = 410, Height = 445, Owner = this,
+            Title = T("settings") + " — " + T("appName"), Width = 410, Height = 505, Owner = this,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Background = Brush("#141d29", "#f5f6f9"),
             Foreground = Brush("#f5f6f8", "#222b39"),
@@ -530,14 +582,23 @@ internal sealed class LampikWindow : Window
         };
         var root = new StackPanel { Margin = new Thickness(18) };
         dialog.Content = root;
-        root.Children.Add(Text("Внешний вид", 17, FontWeights.Bold));
-        var dark = new CheckBox { Content = "Тёмная тема (светящаяся лампочка)",
+        root.Children.Add(Text(T("language"), 16, FontWeights.Bold));
+        var languages = new ComboBox
+        {
+            Width = 160, Height = 30, Margin = new Thickness(0, 7, 0, 14),
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+            ItemsSource = new[] { "Русский", "English" },
+            SelectedIndex = prefs.Language == "en" ? 1 : 0
+        };
+        root.Children.Add(languages);
+        root.Children.Add(Text(T("appearance"), 17, FontWeights.Bold));
+        var dark = new CheckBox { Content = T("dark"),
             IsChecked = prefs.DarkTheme, Foreground = dialog.Foreground, Margin = new Thickness(0, 9, 0, 7) };
         root.Children.Add(dark);
-        var top = new CheckBox { Content = "Поверх всех окон",
+        var top = new CheckBox { Content = T("onTop"),
             IsChecked = prefs.AlwaysOnTop, Foreground = dialog.Foreground, Margin = new Thickness(0, 0, 0, 12) };
         root.Children.Add(top);
-        root.Children.Add(Text("Глобальные горячие клавиши", 17, FontWeights.Bold));
+        root.Children.Add(Text(T("hotkeys"), 17, FontWeights.Bold));
         var rows = new List<(TextBox shortcut, TextBox minutes, CheckBox enabled)>();
         var presetList = prefs.Hotkeys.Take(5).ToList();
         void AddRow(KeyPreset preset)
@@ -549,18 +610,18 @@ internal sealed class LampikWindow : Window
                 Padding = new Thickness(5) };
             var min = new TextBox { Width = 70, Text = preset.Minutes.ToString(CultureInfo.InvariantCulture),
                 FontSize = 12, Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(5),
-                ToolTip = "Минуты" };
+                ToolTip = T("minutes") };
             line.Children.Add(enabled); line.Children.Add(key); line.Children.Add(min);
             rows.Add((key, min, enabled)); root.Children.Add(line);
         }
         foreach (var preset in presetList) AddRow(preset);
-        var add = new Button { Content = "+ Сочетание", Width = 115, Margin = new Thickness(0, 9, 0, 6) };
+        var add = new Button { Content = T("addHotkey"), Width = 115, Margin = new Thickness(0, 9, 0, 6) };
         add.Click += (_, _) => { if (rows.Count < 5) { AddRow(new KeyPreset()); dialog.Height += 35; } };
         root.Children.Add(add);
-        var info = Text("Пример: Ctrl+1 или Ctrl+6, Ctrl+0 (два нажатия подряд)", 11);
+        var info = Text(T("hotkeyHint"), 11);
         info.Foreground = dialog.Foreground; info.TextWrapping = TextWrapping.Wrap; info.TextTrimming = TextTrimming.None;
         root.Children.Add(info);
-        var save = new Button { Content = "Сохранить", Margin = new Thickness(0, 13, 0, 0), Height = 32 };
+        var save = new Button { Content = T("save"), Margin = new Thickness(0, 13, 0, 0), Height = 32 };
         save.Click += (_, _) =>
         {
             var newPresets = new List<KeyPreset>();
@@ -569,23 +630,28 @@ internal sealed class LampikWindow : Window
                 if (!int.TryParse(row.minutes.Text, out int mins) || mins < 1 || mins > 43200
                     || !KeySyntax.Parse(row.shortcut.Text, out _))
                 {
-                    System.Windows.MessageBox.Show("Проверь формат сочетания и количество минут (1–43200).",
-                        "Лампик", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    System.Windows.MessageBox.Show(T("invalidHotkey"),
+                        T("appName"), MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
                 newPresets.Add(new KeyPreset { Shortcut = row.shortcut.Text, Minutes = mins,
                     Enabled = row.enabled.IsChecked == true });
             }
+            bool languageChanged = prefs.Language != (languages.SelectedIndex == 1 ? "en" : "ru");
+            prefs.Language = languages.SelectedIndex == 1 ? "en" : "ru";
             prefs.DarkTheme = dark.IsChecked == true;
             prefs.AlwaysOnTop = top.IsChecked == true;
             prefs.Hotkeys = newPresets;
+            if (languageChanged)
+                message = target is DateTime deadline ? T("scheduled", Label(action), deadline.ToString("HH:mm:ss")) : T("question");
             try { SaveSettings(); }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show(ex.Message, "Ошибка сохранения", MessageBoxButton.OK);
+                System.Windows.MessageBox.Show(ex.Message, T("saveError"), MessageBoxButton.OK);
                 return;
             }
-            Topmost = prefs.AlwaysOnTop; RegisterHotkeys(); Rebuild();
+            Topmost = prefs.AlwaysOnTop; Title = T("title");
+            RegisterHotkeys(); UpdateTrayMenu(); Rebuild();
             dialog.DialogResult = true;
         };
         root.Children.Add(save);
@@ -623,7 +689,7 @@ internal sealed class LampikWindow : Window
         StopChord();
         if (!RegisterHotKey(handle, ChordId, second.Modifiers, second.Key))
         {
-            message = "Вторая комбинация занята другой программой."; Refresh();
+            message = T("chordBusy"); Refresh();
             return;
         }
         pending = preset; chordTimer.Start();

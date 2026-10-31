@@ -1,5 +1,5 @@
-#define MyAppName "Лампик"
-#define MyAppVersion "0.3.0-beta.1"
+#define MyAppName "Lampik"
+#define MyAppVersion "0.3.0-beta.2"
 #define MyAppPublisher "Daniil Goncharov"
 #define MyAppExeName "Lampik.exe"
 
@@ -13,7 +13,7 @@ DefaultDirName={localappdata}\Programs\Lampik
 DefaultGroupName={#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
 OutputDir=..\release-installer
-OutputBaseFilename=Lampik-Setup-0.3.0-beta.1-win-x64
+OutputBaseFilename=Lampik-Setup-0.3.0-beta.2-win-x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -24,10 +24,19 @@ CloseApplications=yes
 RestartApplications=no
 
 [Languages]
+Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 
+[CustomMessages]
+english.DesktopGroup=Shortcuts:
+russian.DesktopGroup=Ярлыки:
+english.DesktopIcon=Create a desktop shortcut
+russian.DesktopIcon=Создать ярлык на рабочем столе
+english.Launch=Launch Lampik
+russian.Launch=Запустить Лампик
+
 [Tasks]
-Name: "desktopicon"; Description: "Создать ярлык на рабочем столе"; GroupDescription: "Ярлыки:"; Flags: unchecked
+Name: "desktopicon"; Description: "{cm:DesktopIcon}"; GroupDescription: "{cm:DesktopGroup}"; Flags: unchecked
 
 [Files]
 Source: "..\release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -37,4 +46,4 @@ Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Запустить Лампик"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent
