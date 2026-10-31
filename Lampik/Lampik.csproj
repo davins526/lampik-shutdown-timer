@@ -8,5 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <AssemblyName>Lampik</AssemblyName>
+    <Version>0.4.0-beta.1</Version>
+    <Product>Lampik - Shutdown Timer</Product>
   </PropertyGroup>
 </Project>
