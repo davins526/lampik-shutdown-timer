@@ -1,0 +1,23 @@
+name: Validate Windows and language commands
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-tests:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build desktop application
+        run: dotnet build Lampik/Lampik.csproj -c Release
+      - name: Run bilingual command smoke tests
+        run: dotnet run --project tests/Lampik.ParserTests/Lampik.ParserTests.csproj -c Release
