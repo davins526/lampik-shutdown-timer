@@ -314,7 +314,7 @@ internal sealed class LampikWindow : Window
 
     void Rebuild()
     {
-        Height = mini ? 194 : 352;
+        Height = mini ? 208 : 352;
         MinHeight = MaxHeight = Height;
         var surface = GlassUI.WindowSurface(prefs.DarkTheme, 23);
         surface.Padding = new Thickness(14, 12, 14, 12);
