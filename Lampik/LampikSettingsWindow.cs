@@ -11,6 +11,7 @@ using Border = System.Windows.Controls.Border;
 using Button = System.Windows.Controls.Button;
 using TextBox = System.Windows.Controls.TextBox;
 using Orientation = System.Windows.Controls.Orientation;
+using Brushes = System.Windows.Media.Brushes;
 
 namespace Lampik;
 
@@ -245,10 +246,7 @@ internal sealed class LampikSettingsWindow : Window
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(76) });
         var toggle = GlassUI.Toggle(dark, preset.Enabled ? "✓" : "–", preset.Enabled,
-            enabled =>
-            {
-                if (hotkeyInputs.FirstOrDefault(x => x.Enabled.IsChecked == enabled).Enabled is not null) { }
-            }, 41);
+            _ => { }, 41);
         toggle.Content = preset.Enabled ? "✓" : "–";
         toggle.Click += (_, _) => toggle.Content = toggle.IsChecked == true ? "✓" : "–";
         toggle.Height = 36;
