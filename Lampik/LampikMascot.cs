@@ -137,6 +137,10 @@ internal sealed class LampikMascot : Viewbox
         Unloaded += (_, _) => Stop();
     }
 
+    public void ResumeAnimations() => Start();
+
+    public void PauseAnimations() => Stop();
+
     private void Start()
     {
         if (awake) return;
