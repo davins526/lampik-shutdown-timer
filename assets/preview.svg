@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="560" viewBox="0 0 1100 560">
+<defs>
+ <radialGradient id="halo"><stop offset="0" stop-color="#ffc866" stop-opacity=".34"/><stop offset=".5" stop-color="#f3ab4f" stop-opacity=".13"/><stop offset="1" stop-color="#f3ab4f" stop-opacity="0"/></radialGradient>
+ <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff0ba"/><stop offset="1" stop-color="#ffd77e"/></linearGradient>
+</defs>
+<rect width="1100" height="560" rx="32" fill="#080e1a"/>
+<text x="60" y="76" fill="#f1f5f9" font-family="Segoe UI,Arial" font-size="42" font-weight="700">Лампик</text>
+<text x="278" y="76" fill="#8b9bb0" font-family="Segoe UI,Arial" font-size="20">/ мини-помощник для Windows</text>
+<rect x="77" y="112" width="385" height="398" rx="27" fill="#111824" stroke="#354358" stroke-width="2"/>
+<circle cx="117" cy="147" r="6" fill="#ffd279"/>
+<text x="135" y="154" fill="#f2f4f8" font-family="Segoe UI,Arial" font-size="20" font-weight="600">лампик</text>
+<text x="416" y="153" fill="#899aaf" font-family="Segoe UI,Arial" font-size="23" text-anchor="middle">•••</text>
+<circle cx="266" cy="266" r="151" fill="url(#halo)"/>
+<path d="M251 216 C189 218 188 296 224 322 C232 328 235 338 237 348 L295 348 C298 335 304 327 314 318 C352 276 329 212 269 216Z" fill="url(#glass)" stroke="#a28868" stroke-width="5"/>
+<ellipse cx="248" cy="280" rx="6" ry="9" fill="#362f35"/>
+<ellipse cx="286" cy="280" rx="6" ry="9" fill="#362f35"/>
+<ellipse cx="234" cy="295" rx="12" ry="6" fill="#f9a6a7"/>
+<ellipse cx="301" cy="295" rx="12" ry="6" fill="#f9a6a7"/>
+<path d="M257 302 Q267 314 279 301" stroke="#49342f" stroke-width="3" fill="none" stroke-linecap="round"/>
+<rect x="234" y="342" width="65" height="30" rx="8" fill="#cbd1d9" stroke="#7c8291" stroke-width="3"/>
+<path d="M242 352 H291 M242 362 H291" stroke="#8b929e" stroke-width="3"/>
+<text x="267" y="397" font-family="Segoe UI,Arial" font-weight="700" font-size="24" text-anchor="middle" fill="#f7f7fc">Я на связи ✦</text>
+<text x="267" y="427" font-family="Segoe UI,Arial" font-size="15" text-anchor="middle" fill="#a1afc4">Когда выключаем компьютер?</text>
+<rect x="96" y="446" width="347" height="45" rx="17" fill="#1e2b3c"/>
+<text x="114" y="475" fill="#93a4b8" font-family="Segoe UI,Arial" font-size="16">выключи через 40 минут...</text>
+<circle cx="417" cy="468" r="18" fill="#f6c56d"/>
+<text x="417" y="475" font-family="Segoe UI,Arial" font-size="22" text-anchor="middle" fill="#202737">↑</text>
+<rect x="527" y="215" width="503" height="180" rx="27" fill="#111824" stroke="#354358" stroke-width="2"/>
+<circle cx="558" cy="251" r="6" fill="#ffd279"/>
+<text x="576" y="258" fill="#f2f4f8" font-family="Segoe UI,Arial" font-size="20" font-weight="600">лампик</text>
+<text x="997" y="258" fill="#8496ad" font-family="Segoe UI,Arial" font-size="21" text-anchor="end">•••</text>
+<circle cx="572" cy="311" r="13" fill="#ffd77e"/>
+<rect x="563" y="320" width="18" height="9" rx="3" fill="#cbd1d9"/>
+<text x="607" y="318" fill="#f4f6f9" font-family="Segoe UI,Arial" font-size="38" font-weight="700">01:00:00</text>
+<text x="608" y="343" fill="#a1afc4" font-family="Segoe UI,Arial" font-size="17">Выключение через час</text>
+<rect x="823" y="291" width="184" height="51" rx="17" fill="#243448"/>
+<text x="915" y="322" fill="#f9d390" text-anchor="middle" font-family="Segoe UI,Arial" font-size="18">Отменить</text>
+<text x="527" y="433" fill="#eef2f8" font-family="Segoe UI,Arial" font-size="24" font-weight="700">Мини-режим</text>
+<text x="527" y="464" fill="#899caf" font-family="Segoe UI,Arial" font-size="17">Поверх окон · трей · горячие клавиши</text>
+<text x="60" y="533" fill="#8292a6" font-family="Segoe UI,Arial" font-size="15">Визуальный концепт MVP 0.3 — не скриншот работающей сборки</text>
+</svg>
