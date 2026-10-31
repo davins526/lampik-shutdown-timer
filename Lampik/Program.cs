@@ -49,6 +49,8 @@ public sealed class KeyPreset
 public sealed class Preferences
 {
     public bool DarkTheme { get; set; } = true;
+    public string Language { get; set; } =
+        CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ru" ? "ru" : "en";
     public bool AlwaysOnTop { get; set; } = true;
     public List<KeyPreset> Hotkeys { get; set; } = Defaults();
     public static List<KeyPreset> Defaults() => new()
@@ -64,71 +66,108 @@ internal record PowerCommand(PowerAction Action, DateTime Target);
 
 internal static class Commands
 {
-    static readonly Dictionary<string, string> Words = new()
+    private static readonly Dictionary<string, string> NumberWords = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["одну"] = "1", ["один"] = "1", ["одна"] = "1",
-        ["две"] = "2", ["два"] = "2", ["три"] = "3",
-        ["четыре"] = "4", ["пять"] = "5", ["шесть"] = "6",
-        ["семь"] = "7", ["восемь"] = "8", ["девять"] = "9",
-        ["десять"] = "10", ["пятнадцать"] = "15",
-        ["двадцать"] = "20", ["тридцать"] = "30", ["сорок"] = "40",
-        ["пятьдесят"] = "50", ["шестьдесят"] = "60"
+        ["одну"] = "1", ["один"] = "1", ["одна"] = "1", ["две"] = "2", ["два"] = "2",
+        ["три"] = "3", ["четыре"] = "4", ["пять"] = "5", ["шесть"] = "6",
+        ["семь"] = "7", ["восемь"] = "8", ["девять"] = "9", ["десять"] = "10",
+        ["пятнадцать"] = "15", ["двадцать"] = "20", ["тридцать"] = "30",
+        ["сорок"] = "40", ["пятьдесят"] = "50", ["шестьдесят"] = "60",
+        ["one"] = "1", ["two"] = "2", ["three"] = "3", ["four"] = "4",
+        ["five"] = "5", ["six"] = "6", ["seven"] = "7", ["eight"] = "8",
+        ["nine"] = "9", ["ten"] = "10", ["fifteen"] = "15", ["twenty"] = "20",
+        ["thirty"] = "30", ["forty"] = "40", ["fifty"] = "50", ["sixty"] = "60",
     };
-    public static bool Parse(string text, DateTime now, out PowerCommand? command, out string response)
+
+    public static bool Parse(string text, DateTime now, string language,
+        out PowerCommand? command, out string response)
     {
         command = null;
         response = "";
         text = text.ToLowerInvariant().Replace('ё', 'е').Trim();
-        if (Regex.IsMatch(text, @"отмен|сброс|стоп|не надо")) { response = "cancel"; return true; }
-        if (Regex.IsMatch(text, @"статус|сколько осталось|когда сработает")) { response = "status"; return true; }
-        if (Regex.IsMatch(text, @"помощь|help|что умеешь")) { response = "help"; return true; }
-        var action = Regex.IsMatch(text, @"перезагру|рестарт|restart") ? PowerAction.Restart :
-            Regex.IsMatch(text, @"гибернац|гибернир|hibernate") ? PowerAction.Hibernate :
-            Regex.IsMatch(text, @"\bсон\b|\bсна\b|усып|sleep") ? PowerAction.Sleep : PowerAction.Shutdown;
-        DateTime target;
-        var absolute = Regex.Match(text, @"(?<!\d)(?<h>[01]?\d|2[0-3]):(?<m>[0-5]\d)(?!\d)");
-        if (absolute.Success)
+        if (Regex.IsMatch(text, @"отмен|сброс|стоп|не надо|\b(cancel|stop|abort)\b"))
         {
-            target = now.Date.AddHours(int.Parse(absolute.Groups["h"].Value, CultureInfo.InvariantCulture))
-                .AddMinutes(int.Parse(absolute.Groups["m"].Value, CultureInfo.InvariantCulture));
-            if (text.Contains("завтра")) target = target.AddDays(1);
+            response = "cancel";
+            return true;
+        }
+        if (Regex.IsMatch(text, @"статус|сколько осталось|когда сработает|\b(status|time left|remaining)\b"))
+        {
+            response = "status";
+            return true;
+        }
+        if (Regex.IsMatch(text, @"помощь|что умеешь|\b(help|commands)\b"))
+        {
+            response = "help";
+            return true;
+        }
+
+        var action = Regex.IsMatch(text, @"перезагру|рестарт|\b(restart|reboot)\b") ? PowerAction.Restart :
+            Regex.IsMatch(text, @"гибернац|гибернир|\b(hibernate|hibernation)\b") ? PowerAction.Hibernate :
+            Regex.IsMatch(text, @"\b(сон|сна|sleep)\b|усып") ? PowerAction.Sleep :
+            PowerAction.Shutdown;
+
+        DateTime target;
+        // "at 23:30", "в 23:30", "at 11:30 pm"
+        var absolute = Regex.Match(text, @"(?<!\d)(?<h>[01]?\d|2[0-3]):(?<m>[0-5]\d)\s*(?<ampm>am|pm)?(?!\w)");
+        var twelveHour = !absolute.Success ? Regex.Match(text, @"\b(?:at\s+)?(?<h>1[0-2]|0?[1-9])\s*(?<ampm>am|pm)\b") : Match.Empty;
+        if (absolute.Success || twelveHour.Success)
+        {
+            var match = absolute.Success ? absolute : twelveHour;
+            int hour = int.Parse(match.Groups["h"].Value, CultureInfo.InvariantCulture);
+            int minute = match.Groups["m"].Success
+                ? int.Parse(match.Groups["m"].Value, CultureInfo.InvariantCulture) : 0;
+            string ampm = match.Groups["ampm"].Value;
+            if (ampm == "pm" && hour < 12) hour += 12;
+            if (ampm == "am" && hour == 12) hour = 0;
+            target = now.Date.AddHours(hour).AddMinutes(minute);
+            if (Regex.IsMatch(text, @"завтра|\btomorrow\b"))
+                target = target.AddDays(1);
             else if (target <= now)
             {
-                if (text.Contains("сегодня")) { response = "Это время сегодня уже прошло."; return false; }
+                if (Regex.IsMatch(text, @"сегодня|\btoday\b"))
+                {
+                    response = I18n.T(language, "timePast");
+                    return false;
+                }
                 target = target.AddDays(1);
             }
         }
         else
         {
-            text = Regex.Replace(text, @"\b(" + string.Join("|", Words.Keys.OrderByDescending(x => x.Length)) + @")\b",
-                m => Words[m.Value]);
+            // Convert words into numbers, including common half-hour expressions.
+            text = Regex.Replace(text, @"полтора\s+часа", "1.5 час");
+            text = Regex.Replace(text, @"полчаса|пол\s+часа|\bhalf\s+an?\s+hour\b", "0.5 hour");
+            text = Regex.Replace(text, @"\b(an?|the)\s+(?=hours?|minutes?|seconds?\b)", "1 ");
+            text = Regex.Replace(text, @"\bчерез\s+час\b", "через 1 час");
+            text = Regex.Replace(text, @"\bчерез\s+минуту\b", "через 1 минуту");
+            text = Regex.Replace(text, @"\b(" + string.Join("|", NumberWords.Keys.OrderByDescending(k => k.Length)) + @")\b",
+                m => NumberWords[m.Value]);
+
             double seconds = 0;
-            if (text.Contains("полтора час")) seconds += 5400;
-            if (text.Contains("полчаса") || text.Contains("пол часа")) seconds += 1800;
-            foreach (Match m in Regex.Matches(text, @"(?<n>\d+(?:[.,]\d+)?)\s*(?<u>час(?:ов|а)?|ч|минут(?:у|ы|а)?|мин|м|секунд(?:у|ы|а)?|сек|с)\b"))
+            const string pattern = @"(?<n>\d+(?:[.,]\d+)?)\s*(?<u>час(?:ов|а)?|ч|минут(?:у|ы|а)?|мин|м|секунд(?:у|ы|а)?|сек|с|hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)\b";
+            foreach (Match match in Regex.Matches(text, pattern))
             {
-                var n = double.Parse(m.Groups["n"].Value.Replace(',', '.'), CultureInfo.InvariantCulture);
-                var u = m.Groups["u"].Value;
-                seconds += n * (u.StartsWith("час") || u == "ч" ? 3600 : u.StartsWith("м") ? 60 : 1);
+                var n = double.Parse(match.Groups["n"].Value.Replace(',', '.'), CultureInfo.InvariantCulture);
+                var unit = match.Groups["u"].Value;
+                seconds += n * (
+                    unit.StartsWith("час") || unit is "ч" or "h" || unit.StartsWith("hour") || unit.StartsWith("hr")
+                        ? 3600 :
+                    unit.StartsWith("м") || unit is "m" || unit.StartsWith("min")
+                        ? 60 : 1);
             }
             if (seconds == 0)
             {
-                if (Regex.IsMatch(text, @"через\s+час\b")) seconds = 3600;
-                else if (Regex.IsMatch(text, @"через\s+минуту\b")) seconds = 60;
-                else
-                {
-                    var shorthand = Regex.Match(text, @"через\s+(\d+)\b");
-                    if (shorthand.Success) seconds = int.Parse(shorthand.Groups[1].Value) * 60;
-                }
+                var shorthand = Regex.Match(text, @"(?:через|\bin\b)\s+(\d+)\b");
+                if (shorthand.Success) seconds = int.Parse(shorthand.Groups[1].Value, CultureInfo.InvariantCulture) * 60;
             }
             if (seconds < 10 || seconds > 30 * 24 * 3600)
             {
-                response = seconds == 0 ? "Напиши, например: «выключи через 40 минут» или «в 23:30».": 
-                    "Доступен интервал от 10 секунд до 30 дней.";
+                response = I18n.T(language, seconds == 0 ? "prompt" : "range");
                 return false;
             }
             target = now.AddSeconds(seconds);
         }
+
         command = new PowerCommand(action, target);
         return true;
     }
@@ -390,7 +429,7 @@ internal sealed class LampikWindow : Window
         var text = input?.Text.Trim() ?? "";
         if (text.Length == 0) return;
         if (input is not null) input.Clear();
-        if (!Commands.Parse(text, DateTime.Now, out var command, out var reply))
+        if (!Commands.Parse(text, DateTime.Now, prefs.Language, out var command, out var reply))
         { message = reply; Refresh(); return; }
         if (reply == "cancel") { CancelTimer(true); return; }
         if (reply == "help")
