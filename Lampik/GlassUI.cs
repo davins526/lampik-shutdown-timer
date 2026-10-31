@@ -34,11 +34,11 @@ internal static class GlassUI
         => new(Color(a), Color(b), angle);
 
     internal static Brush MainBackground(bool dark) => dark
-        ? Gradient("#192338", "#0A101E", 130)
+        ? Gradient("#F4192338", "#F00A101E", 130)
         : Gradient("#FFFFFF", "#EAEFF9", 130);
 
     internal static Brush PanelBackground(bool dark) => dark
-        ? Gradient("#2A3A52", "#1B273B", 132)
+        ? Gradient("#E32A3A52", "#D61B273B", 132)
         : Gradient("#FFFFFF", "#F5F8FE", 132);
 
     internal static Brush PanelBorder(bool dark) => dark
@@ -74,7 +74,7 @@ internal static class GlassUI
         {
             Background = MainBackground(dark),
             BorderBrush = dark
-                ? Gradient("#50617A", "#1A293E", 145)
+                ? Gradient("#AB50617A", "#8B1A293E", 145)
                 : Gradient("#D0DAEB", "#FFFFFF", 145),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(radius),
