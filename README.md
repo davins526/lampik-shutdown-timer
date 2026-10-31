@@ -22,6 +22,20 @@
 - **Фоновая работа в трее**, обратный отсчёт и отмена активного таймера.
 - **Светлая тема**, настройка режима «поверх окон» и сохранение параметров.
 
+## Два языка / Two languages
+
+Лампик поддерживает **Русский** и **English**. Первый язык выбирается по языку Windows; его можно изменить в **Настройки → Язык / Settings → Language**. Выбор сохраняется в локальных настройках и действует для всего интерфейса, сообщений, системного трея и установщика. **Команды на обоих языках понимаются независимо от языка интерфейса.**
+
+Lampik supports **Russian and English**. The initial language follows your Windows locale. Switch it in **Settings → Language**; your preference persists across restarts. Both languages work for text commands regardless of the selected UI language.
+
+| Русская команда | English command | Что произойдёт / Result |
+| --- | --- | --- |
+| `выключи через 30 минут` | `shut down in 30 minutes` | Shutdown in 30 minutes |
+| `сон через час` | `sleep in an hour` | Sleep in 1 hour |
+| `перезагрузи в 23:00` | `restart at 11 pm` | Restart at 23:00 |
+| `гибернация через полчаса` | `hibernate in half an hour` | Hibernate in 30 minutes |
+| `отмени` | `cancel` | Cancel active timer |
+
 ## Примеры команд
 
 | Ввод | Результат |
@@ -48,9 +62,9 @@
 
 В настройках можно задать, например, `Ctrl+1` и последовательность `Ctrl+6, Ctrl+0`. Вторая запись означает **два последовательных сочетания**, а не три одновременно удерживаемые клавиши. Простые сочетания могут конфликтовать с другими программами, поэтому стандартные используют Alt.
 
-## Установка и запуск
+## Установка и запуск / Installation
 
-**Платформа:** Windows 10/11, x64 · C# · WPF · .NET 8.
+**Платформа / Platform:** Windows 10/11, x64 · C# · WPF · .NET 8.
 
 Когда будет доступна успешная Windows-сборка, автономный EXE и установщик будут опубликованы в разделе [Actions](../../actions) → **Windows EXE and installer** → *Artifacts*. Пока не считайте релиз готовым без успешной сборки.
 
