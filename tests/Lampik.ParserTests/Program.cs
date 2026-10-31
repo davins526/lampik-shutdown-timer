@@ -46,4 +46,32 @@ Check(MascotState.Resolve(now, now.AddMinutes(10), false, now, now.AddSeconds(2)
 Check(MascotState.Resolve(now, null, false, now.AddMinutes(-2), DateTime.MinValue) == MascotMood.Drowsy, "Mascot drowses after inactivity");
 Check(I18n.T("ru", "inputPlaceholder") != I18n.T("en", "inputPlaceholder"), "Mini popup placeholder translated");
 Check(I18n.T("ru", "miniHint").Contains("Ctrl+Alt+L"), "Quick popup shortcut hint available");
+var icoPath = System.IO.Path.Combine("Lampik", "Assets", "lampik.ico");
+Check(System.IO.File.Exists(icoPath), "Brand icon is checked into the repository");
+var icoBytes = System.IO.File.ReadAllBytes(icoPath);
+Check(icoBytes.Length > 2048 && icoBytes[0] == 0 && icoBytes[1] == 0 &&
+    icoBytes[2] == 1 && icoBytes[3] == 0 && icoBytes[4] >= 2, "Windows icon container has multiple sizes");
+Check(I18n.T("ru", "localChip") != I18n.T("en", "localChip"),
+    "Online-free status badge has both localizations");
+Check(I18n.T("en", "settingsCancel") == "Cancel", "Custom settings footer localized");
+
+// Construct the settings view on an STA thread to catch startup/templating regressions.
+// Do not Show() it: GitHub hosted runners have no interactive desktop.
+Exception? uiError = null;
+var uiThread = new System.Threading.Thread(() =>
+{
+    try
+    {
+        var dialog = new LampikSettingsWindow(new Preferences());
+        Check(dialog.Content is not null, "Glass settings content constructed");
+        dialog.Close();
+    }
+    catch (Exception ex) { uiError = ex; }
+});
+uiThread.SetApartmentState(System.Threading.ApartmentState.STA);
+uiThread.Start();
+uiThread.Join();
+if (uiError is not null) throw new Exception("Glass settings failed to construct", uiError);
+Check(uiError is null, "Glass settings window smoke test");
+
 Console.WriteLine($"All {count} checks passed.");

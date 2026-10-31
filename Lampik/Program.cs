@@ -214,6 +214,8 @@ internal sealed class LampikWindow : Window
     readonly HashSet<int> registeredIds = new();
     Preferences prefs;
     Forms.NotifyIcon? tray;
+    System.Drawing.Icon? trayIcon;
+    Stream? trayIconStream;
     IntPtr handle;
     KeyPreset? pending;
     DateTime? target;
@@ -239,8 +241,14 @@ internal sealed class LampikWindow : Window
         prefs.Hotkeys ??= Preferences.Defaults();
         prefs.Language = I18n.Language(prefs.Language);
         message = T("question");
-        Width = 300; Height = 324; MinWidth = MaxWidth = 300;
-        MinHeight = MaxHeight = 324;
+        Width = 310; Height = 352; MinWidth = MaxWidth = 310;
+        MinHeight = MaxHeight = 352;
+        try
+        {
+            Icon = System.Windows.Media.Imaging.BitmapFrame.Create(
+                new Uri("pack://application:,,,/Assets/lampik.ico"));
+        }
+        catch (Exception) { /* Window still works if the icon cannot be loaded. */ }
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
         Background = Brushes.Transparent;
@@ -306,19 +314,16 @@ internal sealed class LampikWindow : Window
 
     void Rebuild()
     {
-        // Never remove the command field in mini mode: this is the fast-command widget.
-        Height = mini ? 184 : 324;
+        Height = mini ? 208 : 352;
         MinHeight = MaxHeight = Height;
-        var frame = new Border
-        {
-            Background = Brush("#101722", "#fafbfe"), BorderBrush = Brush("#2d3849", "#e1e6ee"),
-            BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(19), Padding = new Thickness(12)
-        };
-        var stack = new StackPanel();
-        frame.Child = stack;
-        Content = frame;
-
-        var header = new DockPanel { Height = 31, LastChildFill = true };
+        var surface = GlassUI.WindowSurface(prefs.DarkTheme, 23);
+        surface.Padding = new Thickness(14, 12, 14, 12);
+        var body = new StackPanel();
+        surface.Child = body;
+        Content = surface;
+        var header = new Grid { Height = 36 };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         header.MouseLeftButtonDown += (_, e) =>
         {
             if (e.LeftButton == MouseButtonState.Pressed)
@@ -327,104 +332,139 @@ internal sealed class LampikWindow : Window
                 RememberPosition();
             }
         };
-        var actions = new StackPanel
+        var brand = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        var brandBadge = new Border
         {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+            Width = 32, Height = 32, Background = GlassUI.AccentBackground(),
+            BorderBrush = GlassUI.AccentBorder(), BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(11), Margin = new Thickness(1, 0, 9, 0)
         };
-        actions.Children.Add(Button(mini ? "▴" : "▾", ToggleMini, T("mini")));
-        actions.Children.Add(Button("⚙", OpenSettings, T("settings")));
-        actions.Children.Add(Button("×", HideToTray, T("hide")));
-        DockPanel.SetDock(actions, Dock.Right);
-        header.Children.Add(actions);
-        var title = Text("●  " + T("appName"), 14, FontWeights.Bold);
-        title.Foreground = Brush("#ffdb90", "#414a62");
-        header.Children.Add(title);
-        stack.Children.Add(header);
-
-        if (mini)
+        if (Icon is not null)
         {
-            var status = new StackPanel { Orientation = Orientation.Horizontal, Height = 55 };
-            mascot = new LampikMascot { Width = 80, Height = 53, Margin = new Thickness(0, -3, 7, 0) };
-            status.Children.Add(mascot);
-            var info = new StackPanel
+            brandBadge.Child = new System.Windows.Controls.Image
             {
-                VerticalAlignment = VerticalAlignment.Center,
-                Width = 178
+                Source = Icon, Width = 28, Height = 28, Stretch = Stretch.Uniform,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
             };
-            countdownLabel = Text("— : —", 18, FontWeights.Bold);
-            countdownLabel.Foreground = Brush("#f5d392", "#5f6178");
-            info.Children.Add(countdownLabel);
-            var hint = Text(T("miniHint"), 10);
-            hint.Foreground = Brush("#a8b6c8", "#646f83");
-            info.Children.Add(hint);
-            status.Children.Add(info);
-            stack.Children.Add(status);
         }
         else
         {
-            mascot = new LampikMascot
-            {
-                Width = 268, Height = 145, Margin = new Thickness(0, 3, 0, 0)
-            };
-            stack.Children.Add(mascot);
-            countdownLabel = Text("— : —", 22, FontWeights.Bold);
-            countdownLabel.Foreground = Brush("#f5d392", "#5f6178");
-            countdownLabel.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
-            countdownLabel.Margin = new Thickness(0, 0, 0, 2);
-            stack.Children.Add(countdownLabel);
+            brandBadge.Child = GlassUI.Label(prefs.DarkTheme, "✦", 21, true);
+        }
+        brand.Children.Add(brandBadge);
+        var brandText = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        brandText.Children.Add(GlassUI.Label(prefs.DarkTheme, T("appName"), 14, true));
+        brandText.Children.Add(GlassUI.Label(prefs.DarkTheme, "POWER COMPANION", 8, false, true));
+        brand.Children.Add(brandText);
+        header.Children.Add(brand);
+
+        var controls = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var compact = GlassUI.Button(prefs.DarkTheme, mini ? "▴" : "▾", ToggleMini, 29, 30);
+        compact.ToolTip = T("mini"); controls.Children.Add(compact);
+        var settingsButton = GlassUI.Button(prefs.DarkTheme, "⚙", OpenSettings, 29, 30);
+        settingsButton.Margin = new Thickness(5, 0, 0, 0);
+        settingsButton.ToolTip = T("settings"); controls.Children.Add(settingsButton);
+        var close = GlassUI.Button(prefs.DarkTheme, "×", HideToTray, 29, 30);
+        close.Margin = new Thickness(5, 0, 0, 0);
+        close.ToolTip = T("hide"); close.FontSize = 19; controls.Children.Add(close);
+        Grid.SetColumn(controls, 1); header.Children.Add(controls);
+        body.Children.Add(header);
+
+        if (!mini)
+        {
+            var stage = GlassUI.Surface(prefs.DarkTheme, 20);
+            stage.Height = 142;
+            stage.Margin = new Thickness(0, 10, 0, 7);
+            stage.Background = prefs.DarkTheme
+                ? GlassUI.Gradient("#202E46", "#111D30", 115)
+                : GlassUI.Gradient("#F9FBFF", "#EDF3FC", 115);
+            mascot = new LampikMascot { Width = 252, Height = 140 };
+            stage.Child = mascot;
+            body.Children.Add(stage);
+        }
+        else
+        {
+            var strip = GlassUI.Surface(prefs.DarkTheme, 17);
+            strip.Height = 55;
+            strip.Margin = new Thickness(0, 9, 0, 6);
+            var grid = new Grid { Margin = new Thickness(6, 0, 11, 0) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(76) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            mascot = new LampikMascot { Width = 73, Height = 54 };
+            grid.Children.Add(mascot);
+            var info = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            countdownLabel = GlassUI.Label(prefs.DarkTheme, "— : —", 19, true);
+            countdownLabel.Foreground = GlassUI.Solid("#F9D797");
+            info.Children.Add(countdownLabel);
+            info.Children.Add(GlassUI.Label(prefs.DarkTheme, T("miniHint"), 10, false, true));
+            Grid.SetColumn(info, 1); grid.Children.Add(info);
+            strip.Child = grid;
+            body.Children.Add(strip);
         }
 
-        messageLabel = Text(message, mini ? 11 : 12);
-        messageLabel.Foreground = Brush("#a8b6c8", "#646f83");
-        messageLabel.TextAlignment = TextAlignment.Center;
-        messageLabel.TextWrapping = TextWrapping.Wrap;
-        messageLabel.TextTrimming = TextTrimming.None;
-        messageLabel.Height = mini ? 31 : 36;
-        messageLabel.Margin = new Thickness(0, 0, 0, 7);
-        stack.Children.Add(messageLabel);
-
-        var bar = new Grid { Height = 38 };
-        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var field = new Grid { Height = 35 };
-        input = new TextBox
+        if (!mini)
         {
-            FontSize = 12, Height = 35, Padding = new Thickness(10, 8, 8, 0),
-            ToolTip = T("example"),
-            Foreground = Brush("#f0f3fa", "#2b3445"),
-            Background = Brush("#1d2938", "#eef1f6"),
-            BorderBrush = Brush("#303f50", "#d5dce7"),
-            BorderThickness = new Thickness(1)
-        };
+            var timerLine = new Grid { Height = 35, Margin = new Thickness(2, 0, 2, 0) };
+            timerLine.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            timerLine.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            countdownLabel = GlassUI.Label(prefs.DarkTheme, "— : —", 23, true);
+            countdownLabel.Foreground = GlassUI.Solid("#FFDA95");
+            timerLine.Children.Add(countdownLabel);
+            var pill = GlassUI.Chip(prefs.DarkTheme, T("localChip"));
+            pill.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(pill, 1); timerLine.Children.Add(pill);
+            body.Children.Add(timerLine);
+        }
+
+        messageLabel = GlassUI.Label(prefs.DarkTheme, message, mini ? 11 : 12, false, true);
+        messageLabel.TextAlignment = TextAlignment.Left;
+        messageLabel.TextTrimming = TextTrimming.CharacterEllipsis;
+        messageLabel.TextWrapping = TextWrapping.Wrap;
+        messageLabel.Height = mini ? 22 : 29;
+        messageLabel.Margin = new Thickness(3, 1, 0, mini ? 5 : 7);
+        body.Children.Add(messageLabel);
+
+        var bar = GlassUI.Surface(prefs.DarkTheme, 15);
+        bar.Height = 43;
+        bar.Background = prefs.DarkTheme
+            ? GlassUI.Gradient("#27394F", "#1A293D", 125)
+            : GlassUI.Gradient("#FFFFFF", "#EFF4FB", 125);
+        bar.Margin = new Thickness(0, 0, 0, 0);
+        var entry = new Grid { Margin = new Thickness(10, 3, 4, 3) };
+        entry.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        entry.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var inputLayer = new Grid { Height = 35 };
+        input = GlassUI.Input(prefs.DarkTheme, "", 12);
+        input.Padding = new Thickness(5, 0, 3, 0);
+        input.ToolTip = T("example");
         input.KeyDown += (_, e) =>
         {
-            if (e.Key == Key.Enter)
-            {
-                e.Handled = true;
-                Submit();
-            }
+            if (e.Key == Key.Enter) { e.Handled = true; Submit(); }
         };
-        var placeholder = Text(T("inputPlaceholder"), 11);
-        placeholder.Foreground = Brush("#77879c", "#8390a2");
-        placeholder.Margin = new Thickness(10, 0, 0, 0);
-        placeholder.IsHitTestVisible = false;
+        var hint = GlassUI.Label(prefs.DarkTheme, T("inputPlaceholder"), 11, false, true);
+        hint.Margin = new Thickness(5, 0, 0, 0);
+        hint.IsHitTestVisible = false;
         input.TextChanged += (_, _) =>
         {
+            hint.Visibility = string.IsNullOrEmpty(input.Text) ? Visibility.Visible : Visibility.Collapsed;
             lastInteraction = DateTime.Now;
-            placeholder.Visibility = string.IsNullOrEmpty(input.Text) ? Visibility.Visible : Visibility.Collapsed;
             RefreshMascot();
         };
-        field.Children.Add(input);
-        field.Children.Add(placeholder);
-        bar.Children.Add(field);
-        var send = Button("↗", Submit, T("send"));
-        send.Width = 37; send.Height = 35; send.Margin = new Thickness(6, 0, 0, 0);
-        send.Background = Brush("#e8bb70", "#7570e7");
-        send.Foreground = Brush("#222a35", "#ffffff");
-        Grid.SetColumn(send, 1);
-        bar.Children.Add(send);
-        stack.Children.Add(bar);
+        inputLayer.Children.Add(input);
+        inputLayer.Children.Add(hint);
+        entry.Children.Add(inputLayer);
+        var send = GlassUI.Button(prefs.DarkTheme, "↗", Submit, 35, 34, true, 12);
+        send.FontSize = 18;
+        send.ToolTip = T("send");
+        Grid.SetColumn(send, 1); entry.Children.Add(send);
+        bar.Child = entry;
+        body.Children.Add(bar);
         Refresh();
     }
 
@@ -595,8 +635,23 @@ internal sealed class LampikWindow : Window
 
     void InitTray()
     {
-        tray = new Forms.NotifyIcon { Text = T("title"),
-            Icon = System.Drawing.SystemIcons.Information, Visible = true };
+        try
+        {
+            var asset = System.Windows.Application.GetResourceStream(
+                new Uri("pack://application:,,,/Assets/lampik.ico"));
+            if (asset is not null)
+            {
+                trayIconStream = asset.Stream;
+                trayIcon = new System.Drawing.Icon(trayIconStream);
+            }
+        }
+        catch (Exception) { /* Use the standard application icon if resource loading fails. */ }
+        tray = new Forms.NotifyIcon
+        {
+            Text = T("title"),
+            Icon = trayIcon ?? System.Drawing.SystemIcons.Application,
+            Visible = true
+        };
         UpdateTrayMenu();
         tray.DoubleClick += (_, _) => Dispatcher.Invoke(Restore);
     }
@@ -647,6 +702,8 @@ internal sealed class LampikWindow : Window
         timer.Stop(); StopChord();
         foreach (int id in registeredIds) UnregisterHotKey(handle, id);
         tray?.Dispose();
+        trayIcon?.Dispose();
+        trayIconStream?.Dispose();
     }
 
     void SaveSettings()
@@ -658,90 +715,28 @@ internal sealed class LampikWindow : Window
     void OpenSettings()
     {
         Restore();
-        var dialog = new Window
+        var dialog = new LampikSettingsWindow(prefs) { Owner = this };
+        if (dialog.ShowDialog() != true) return;
+        var previousLanguage = prefs.Language;
+        prefs = dialog.Result;
+        prefs.Language = I18n.Language(prefs.Language);
+        if (previousLanguage != prefs.Language)
         {
-            Title = T("settings") + " — " + T("appName"), Width = 410, Height = 505, Owner = this,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = Brush("#141d29", "#f5f6f9"),
-            Foreground = Brush("#f5f6f8", "#222b39"),
-            ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false
-        };
-        var root = new StackPanel { Margin = new Thickness(18) };
-        dialog.Content = root;
-        root.Children.Add(Text(T("language"), 16, FontWeights.Bold));
-        var languages = new ComboBox
-        {
-            Width = 160, Height = 30, Margin = new Thickness(0, 7, 0, 14),
-            HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
-            ItemsSource = new[] { "Русский", "English" },
-            SelectedIndex = prefs.Language == "en" ? 1 : 0
-        };
-        root.Children.Add(languages);
-        root.Children.Add(Text(T("appearance"), 17, FontWeights.Bold));
-        var dark = new CheckBox { Content = T("dark"),
-            IsChecked = prefs.DarkTheme, Foreground = dialog.Foreground, Margin = new Thickness(0, 9, 0, 7) };
-        root.Children.Add(dark);
-        var top = new CheckBox { Content = T("onTop"),
-            IsChecked = prefs.AlwaysOnTop, Foreground = dialog.Foreground, Margin = new Thickness(0, 0, 0, 12) };
-        root.Children.Add(top);
-        root.Children.Add(Text(T("hotkeys"), 17, FontWeights.Bold));
-        var rows = new List<(TextBox shortcut, TextBox minutes, CheckBox enabled)>();
-        var presetList = prefs.Hotkeys.Take(5).ToList();
-        void AddRow(KeyPreset preset)
-        {
-            var line = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
-            var enabled = new CheckBox { IsChecked = preset.Enabled, VerticalAlignment = VerticalAlignment.Center,
-                Width = 25, Foreground = dialog.Foreground };
-            var key = new TextBox { Width = 215, Text = preset.Shortcut, FontSize = 12,
-                Padding = new Thickness(5) };
-            var min = new TextBox { Width = 70, Text = preset.Minutes.ToString(CultureInfo.InvariantCulture),
-                FontSize = 12, Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(5),
-                ToolTip = T("minutes") };
-            line.Children.Add(enabled); line.Children.Add(key); line.Children.Add(min);
-            rows.Add((key, min, enabled)); root.Children.Add(line);
+            message = target is DateTime active
+                ? T("scheduled", Label(action), active.ToString("HH:mm:ss"))
+                : T("question");
         }
-        foreach (var preset in presetList) AddRow(preset);
-        var add = new Button { Content = T("addHotkey"), Width = 115, Margin = new Thickness(0, 9, 0, 6) };
-        add.Click += (_, _) => { if (rows.Count < 5) { AddRow(new KeyPreset()); dialog.Height += 35; } };
-        root.Children.Add(add);
-        var info = Text(T("hotkeyHint"), 11);
-        info.Foreground = dialog.Foreground; info.TextWrapping = TextWrapping.Wrap; info.TextTrimming = TextTrimming.None;
-        root.Children.Add(info);
-        var save = new Button { Content = T("save"), Margin = new Thickness(0, 13, 0, 0), Height = 32 };
-        save.Click += (_, _) =>
+        try { SaveSettings(); }
+        catch (Exception ex)
         {
-            var newPresets = new List<KeyPreset>();
-            foreach (var row in rows)
-            {
-                if (!int.TryParse(row.minutes.Text, out int mins) || mins < 1 || mins > 43200
-                    || !KeySyntax.Parse(row.shortcut.Text, out _))
-                {
-                    System.Windows.MessageBox.Show(T("invalidHotkey"),
-                        T("appName"), MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-                newPresets.Add(new KeyPreset { Shortcut = row.shortcut.Text, Minutes = mins,
-                    Enabled = row.enabled.IsChecked == true });
-            }
-            bool languageChanged = prefs.Language != (languages.SelectedIndex == 1 ? "en" : "ru");
-            prefs.Language = languages.SelectedIndex == 1 ? "en" : "ru";
-            prefs.DarkTheme = dark.IsChecked == true;
-            prefs.AlwaysOnTop = top.IsChecked == true;
-            prefs.Hotkeys = newPresets;
-            if (languageChanged)
-                message = target is DateTime deadline ? T("scheduled", Label(action), deadline.ToString("HH:mm:ss")) : T("question");
-            try { SaveSettings(); }
-            catch (Exception ex)
-            {
-                System.Windows.MessageBox.Show(ex.Message, T("saveError"), MessageBoxButton.OK);
-                return;
-            }
-            Topmost = prefs.AlwaysOnTop; Title = T("title");
-            RegisterHotkeys(); UpdateTrayMenu(); Rebuild();
-            dialog.DialogResult = true;
-        };
-        root.Children.Add(save);
-        dialog.ShowDialog();
+            System.Windows.MessageBox.Show(ex.Message, T("saveError"), MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        Topmost = prefs.AlwaysOnTop;
+        Title = T("title");
+        RegisterHotkeys();
+        UpdateTrayMenu();
+        Rebuild();
+        FocusInput();
     }
 
     void RegisterHotkeys()
