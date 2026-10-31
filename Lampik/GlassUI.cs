@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
-using System.Windows.Effects;
+using System.Windows.Media.Effects;
 using System.Windows.Input;
 using System.Windows.Media;
 using Border = System.Windows.Controls.Border;
