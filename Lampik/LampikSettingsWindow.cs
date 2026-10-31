@@ -94,13 +94,21 @@ internal sealed class LampikSettingsWindow : Window
             BorderThickness = new Thickness(1), BorderBrush = GlassUI.AccentBorder(),
             Margin = new Thickness(0, 0, 12, 0)
         };
-        mark.Child = new TextBlock
-        {
-            Text = "✦", FontSize = 25, FontWeight = FontWeights.Bold,
-            Foreground = GlassUI.Solid("#53391F"),
-            HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center
-        };
+        mark.Child = Icon is not null
+            ? new System.Windows.Controls.Image
+            {
+                Source = Icon, Width = 36, Height = 36,
+                Stretch = Stretch.Uniform,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+            : new TextBlock
+            {
+                Text = "✦", FontSize = 25, FontWeight = FontWeights.Bold,
+                Foreground = GlassUI.Solid("#53391F"),
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
         brand.Children.Add(mark);
         var title = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         title.Children.Add(Caption(dark, T("settings"), 21, true));
