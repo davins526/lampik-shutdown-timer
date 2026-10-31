@@ -38,4 +38,12 @@ Check(!Parse("выключи сегодня в 19:00", "ru", out cmd, out respon
 Check(I18n.T("en","settings") == "Settings" && I18n.T("ru","settings") == "Настройки", "Translated settings");
 Check(I18n.T("en","scheduled","Shutdown","23:00").Contains("23:00"), "Translated parameter");
 Check(KeySyntax.Parse("Ctrl+6, Ctrl+0", out var strokes) && strokes.Length == 2, "Hotkey chord remains available");
+Check(MascotState.Resolve(now, null, false, now, DateTime.MinValue) == MascotMood.Idle, "Mascot is calm when idle");
+Check(MascotState.Resolve(now, null, true, now, DateTime.MinValue) == MascotMood.Listening, "Mascot listens while typing");
+Check(MascotState.Resolve(now, now.AddMinutes(30), false, now, DateTime.MinValue) == MascotMood.Scheduled, "Mascot reacts to active timer");
+Check(MascotState.Resolve(now, now.AddSeconds(45), true, now, now.AddSeconds(2)) == MascotMood.Warning, "Warning mood takes priority");
+Check(MascotState.Resolve(now, now.AddMinutes(10), false, now, now.AddSeconds(2)) == MascotMood.Happy, "Mascot celebrates successful command");
+Check(MascotState.Resolve(now, null, false, now.AddMinutes(-2), DateTime.MinValue) == MascotMood.Drowsy, "Mascot drowses after inactivity");
+Check(I18n.T("ru", "inputPlaceholder") != I18n.T("en", "inputPlaceholder"), "Mini popup placeholder translated");
+Check(I18n.T("ru", "miniHint").Contains("Ctrl+Alt+L"), "Quick popup shortcut hint available");
 Console.WriteLine($"All {count} checks passed.");
