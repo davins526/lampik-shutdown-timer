@@ -24,6 +24,7 @@ using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
 using Cursors = System.Windows.Input.Cursors;
 using CheckBox = System.Windows.Controls.CheckBox;
+using ComboBox = System.Windows.Controls.ComboBox;
 using Orientation = System.Windows.Controls.Orientation;
 using ColorConverter = System.Windows.Media.ColorConverter;
 using Path = System.IO.Path;
