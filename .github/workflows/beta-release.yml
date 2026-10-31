@@ -1,0 +1,82 @@
+name: Build and publish Windows beta
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lampik-beta
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build and publish Windows x64 executable
+        shell: pwsh
+        run: |
+          dotnet publish Lampik/Lampik.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None --output release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Test-Path release/Lampik.exe)) { throw 'Lampik.exe was not produced' }
+
+      - name: Install Inno Setup 6
+        shell: pwsh
+        run: |
+          if (!(Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Build Russian-language installer
+        shell: pwsh
+        run: |
+          $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          & $compiler installer\Lampik.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Test-Path release-installer/Lampik-Setup-0.3.0-beta.1-win-x64.exe)) {
+            throw 'Setup EXE was not produced'
+          }
+
+      - name: Save build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lampik-v0.3.0-beta.1-win-x64
+          path: |
+            release/Lampik.exe
+            release-installer/Lampik-Setup-0.3.0-beta.1-win-x64.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Create or update public GitHub pre-release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'v0.3.0-beta.1'
+          $assets = @(
+            'release/Lampik.exe',
+            'release-installer/Lampik-Setup-0.3.0-beta.1-win-x64.exe'
+          )
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag @assets --clobber
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            gh release edit $tag --prerelease --notes-file RELEASE_NOTES.md
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } else {
+            gh release create $tag @assets --prerelease --title 'Лампик v0.3.0 — Beta 1' --notes-file RELEASE_NOTES.md --target "$env:GITHUB_SHA"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
