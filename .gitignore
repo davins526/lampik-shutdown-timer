@@ -1,0 +1,7 @@
+bin/
+obj/
+.vs/
+release/
+release-installer/
+*.user
+*.suo
