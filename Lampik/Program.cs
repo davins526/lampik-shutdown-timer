@@ -53,6 +53,8 @@ public sealed class Preferences
     public string Language { get; set; } =
         CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ru" ? "ru" : "en";
     public bool AlwaysOnTop { get; set; } = true;
+    public double? WindowX { get; set; }
+    public double? WindowY { get; set; }
     public List<KeyPreset> Hotkeys { get; set; } = Defaults();
     public static List<KeyPreset> Defaults() => new()
     {
@@ -216,7 +218,10 @@ internal sealed class LampikWindow : Window
     KeyPreset? pending;
     DateTime? target;
     PowerAction action;
-    bool warned, exiting, mini;
+    bool warned, exiting, mini, quickMode;
+    DateTime lastInteraction = DateTime.Now;
+    DateTime happyUntil = DateTime.MinValue;
+    LampikMascot? mascot;
     string message = "";
     TextBox? input;
     TextBlock? messageLabel, countdownLabel;
@@ -235,6 +240,7 @@ internal sealed class LampikWindow : Window
         prefs.Language = I18n.Language(prefs.Language);
         message = T("question");
         Width = 300; Height = 324; MinWidth = MaxWidth = 300;
+        MinHeight = MaxHeight = 324;
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
         Background = Brushes.Transparent;
@@ -252,9 +258,21 @@ internal sealed class LampikWindow : Window
         Loaded += (_, _) =>
         {
             var wa = SystemParameters.WorkArea;
-            Left = wa.Right - Width - 15;
-            Top = wa.Bottom - Height - 15;
-            input?.Focus();
+            Left = prefs.WindowX is double x && double.IsFinite(x)
+                ? Math.Clamp(x, wa.Left, Math.Max(wa.Left, wa.Right - Width))
+                : wa.Right - Width - 15;
+            Top = prefs.WindowY is double y && double.IsFinite(y)
+                ? Math.Clamp(y, wa.Top, Math.Max(wa.Top, wa.Bottom - Height))
+                : wa.Bottom - Height - 15;
+            FocusInput();
+        };
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape)
+            {
+                HideToTray();
+                e.Handled = true;
+            }
         };
         Closing += OnClosing;
         timer.Tick += (_, _) => Tick();
@@ -288,7 +306,9 @@ internal sealed class LampikWindow : Window
 
     void Rebuild()
     {
-        Height = mini ? 148 : 324;
+        // Never remove the command field in mini mode: this is the fast-command widget.
+        Height = mini ? 184 : 324;
+        MinHeight = MaxHeight = Height;
         var frame = new Border
         {
             Background = Brush("#101722", "#fafbfe"), BorderBrush = Brush("#2d3849", "#e1e6ee"),
@@ -298,72 +318,60 @@ internal sealed class LampikWindow : Window
         frame.Child = stack;
         Content = frame;
 
-        var header = new DockPanel { Height = 31 };
-        header.MouseLeftButtonDown += (_, e) => { if (e.LeftButton == MouseButtonState.Pressed) DragMove(); };
-        var title = Text("●  " + T("appName"), 14, FontWeights.Bold);
-        title.Foreground = Brush("#ffdb90", "#414a62");
-        DockPanel.SetDock(title, Dock.Left);
-        header.Children.Add(title);
-
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = System.Windows.HorizontalAlignment.Right };
-        actions.Children.Add(Button(mini ? "▴" : "▾", () => { mini = !mini; Rebuild(); Refresh(); }, T("mini")));
+        var header = new DockPanel { Height = 31, LastChildFill = true };
+        header.MouseLeftButtonDown += (_, e) =>
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                DragMove();
+                RememberPosition();
+            }
+        };
+        var actions = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+        };
+        actions.Children.Add(Button(mini ? "▴" : "▾", ToggleMini, T("mini")));
         actions.Children.Add(Button("⚙", OpenSettings, T("settings")));
         actions.Children.Add(Button("×", HideToTray, T("hide")));
         DockPanel.SetDock(actions, Dock.Right);
         header.Children.Add(actions);
+        var title = Text("●  " + T("appName"), 14, FontWeights.Bold);
+        title.Foreground = Brush("#ffdb90", "#414a62");
+        header.Children.Add(title);
         stack.Children.Add(header);
 
-        if (!mini)
+        if (mini)
         {
-            var picture = new Canvas { Width = 268, Height = 149, Margin = new Thickness(0, 3, 0, 0) };
-            halo = new Ellipse { Width = 228, Height = 145, Opacity = 0.95,
-                Fill = new RadialGradientBrush(
-                    Color.FromArgb(160, 255, 198, 102), Color.FromArgb(0, 255, 190, 80))
-                { RadiusX = .5, RadiusY = .5 } };
-            Canvas.SetLeft(halo, 20);
-            picture.Children.Add(halo);
-            var bulb = new Ellipse { Width = 102, Height = 102,
-                Stroke = Brush("#f3ca79", "#9b8b6c"), StrokeThickness = 2,
-                Fill = new LinearGradientBrush(Color.FromRgb(255, 246, 192),
-                    Color.FromRgb(255, 202, 110), 90) };
-            Canvas.SetLeft(bulb, 83); Canvas.SetTop(bulb, 12);
-            picture.Children.Add(bulb);
-            var shine = new Ellipse { Width = 20, Height = 10, Fill = Brushes.White, Opacity = .44 };
-            Canvas.SetLeft(shine, 102); Canvas.SetTop(shine, 27); picture.Children.Add(shine);
-            var eyeBrush = new SolidColorBrush(Color.FromRgb(60, 49, 45));
-            foreach (int x in new[] { 113, 146 })
+            var status = new StackPanel { Orientation = Orientation.Horizontal, Height = 55 };
+            mascot = new LampikMascot { Width = 80, Height = 53, Margin = new Thickness(0, -3, 7, 0) };
+            status.Children.Add(mascot);
+            var info = new StackPanel
             {
-                var eye = new Ellipse { Width = 8, Height = 11, Fill = eyeBrush };
-                Canvas.SetLeft(eye, x); Canvas.SetTop(eye, 62); picture.Children.Add(eye);
-            }
-            var mouth = new System.Windows.Shapes.Path
-            {
-                Data = Geometry.Parse("M 127,81 Q 134,90 141,81"),
-                Stroke = eyeBrush, StrokeThickness = 2.5, StrokeStartLineCap = PenLineCap.Round
+                VerticalAlignment = VerticalAlignment.Center,
+                Width = 178
             };
-            picture.Children.Add(mouth);
-            var basePlate = new Border { Width = 49, Height = 22, CornerRadius = new CornerRadius(6),
-                Background = new SolidColorBrush(Color.FromRgb(184, 190, 197)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(110, 119, 127)), BorderThickness = new Thickness(2) };
-            Canvas.SetLeft(basePlate, 109); Canvas.SetTop(basePlate, 105);
-            picture.Children.Add(basePlate);
-            stack.Children.Add(picture);
-            var breathing = new DoubleAnimation(.60, 1, TimeSpan.FromSeconds(2.4))
-            { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
-            halo.BeginAnimation(OpacityProperty, breathing);
-
-            countdownLabel = Text("— : —", 22, FontWeights.Bold);
+            countdownLabel = Text("— : —", 18, FontWeights.Bold);
             countdownLabel.Foreground = Brush("#f5d392", "#5f6178");
-            countdownLabel.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
-            countdownLabel.Margin = new Thickness(0, -1, 0, 2);
-            stack.Children.Add(countdownLabel);
+            info.Children.Add(countdownLabel);
+            var hint = Text(T("miniHint"), 10);
+            hint.Foreground = Brush("#a8b6c8", "#646f83");
+            info.Children.Add(hint);
+            status.Children.Add(info);
+            stack.Children.Add(status);
         }
         else
         {
-            countdownLabel = Text("— : —", 18, FontWeights.Bold);
+            mascot = new LampikMascot
+            {
+                Width = 268, Height = 145, Margin = new Thickness(0, 3, 0, 0)
+            };
+            stack.Children.Add(mascot);
+            countdownLabel = Text("— : —", 22, FontWeights.Bold);
             countdownLabel.Foreground = Brush("#f5d392", "#5f6178");
-            countdownLabel.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
-            countdownLabel.Margin = new Thickness(0, 6, 0, 4);
+            countdownLabel.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
+            countdownLabel.Margin = new Thickness(0, 0, 0, 2);
             stack.Children.Add(countdownLabel);
         }
 
@@ -372,41 +380,103 @@ internal sealed class LampikWindow : Window
         messageLabel.TextAlignment = TextAlignment.Center;
         messageLabel.TextWrapping = TextWrapping.Wrap;
         messageLabel.TextTrimming = TextTrimming.None;
-        messageLabel.Height = mini ? 29 : 36;
-        messageLabel.Margin = new Thickness(0, 0, 0, 6);
+        messageLabel.Height = mini ? 31 : 36;
+        messageLabel.Margin = new Thickness(0, 0, 0, 7);
         stack.Children.Add(messageLabel);
 
+        var bar = new Grid { Height = 38 };
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var field = new Grid { Height = 35 };
+        input = new TextBox
+        {
+            FontSize = 12, Height = 35, Padding = new Thickness(10, 8, 8, 0),
+            ToolTip = T("example"),
+            Foreground = Brush("#f0f3fa", "#2b3445"),
+            Background = Brush("#1d2938", "#eef1f6"),
+            BorderBrush = Brush("#303f50", "#d5dce7"),
+            BorderThickness = new Thickness(1)
+        };
+        input.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Enter)
+            {
+                e.Handled = true;
+                Submit();
+            }
+        };
+        var placeholder = Text(T("inputPlaceholder"), 11);
+        placeholder.Foreground = Brush("#77879c", "#8390a2");
+        placeholder.Margin = new Thickness(10, 0, 0, 0);
+        placeholder.IsHitTestVisible = false;
+        input.TextChanged += (_, _) =>
+        {
+            lastInteraction = DateTime.Now;
+            placeholder.Visibility = string.IsNullOrEmpty(input.Text) ? Visibility.Visible : Visibility.Collapsed;
+            RefreshMascot();
+        };
+        field.Children.Add(input);
+        field.Children.Add(placeholder);
+        bar.Children.Add(field);
+        var send = Button("↗", Submit, T("send"));
+        send.Width = 37; send.Height = 35; send.Margin = new Thickness(6, 0, 0, 0);
+        send.Background = Brush("#e8bb70", "#7570e7");
+        send.Foreground = Brush("#222a35", "#ffffff");
+        Grid.SetColumn(send, 1);
+        bar.Children.Add(send);
+        stack.Children.Add(bar);
+        Refresh();
+    }
+
+    void ToggleMini()
+    {
+        double previousBottom = Top + Height;
+        mini = !mini;
+        quickMode = false;
+        Rebuild();
+        var area = SystemParameters.WorkArea;
+        Top = Math.Clamp(previousBottom - Height, area.Top, Math.Max(area.Top, area.Bottom - Height));
+        FocusInput();
+    }
+
+    void RememberPosition()
+    {
+        if (!double.IsFinite(Left) || !double.IsFinite(Top)) return;
+        prefs.WindowX = Left;
+        prefs.WindowY = Top;
+        try { SaveSettings(); }
+        catch (IOException) { /* Window remains movable when local settings are unavailable. */ }
+        catch (UnauthorizedAccessException) { }
+    }
+
+    void FocusInput() => Dispatcher.BeginInvoke(new Action(() =>
+    {
+        if (!IsVisible) return;
+        input?.Focus();
+        Keyboard.Focus(input);
+    }), DispatcherPriority.Input);
+
+    void ShowQuick()
+    {
+        // Ctrl+Alt+L is the single-action popup: show a small command bar at its last position.
         if (!mini)
         {
-            var bar = new Grid { Height = 38 };
-            bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            input = new TextBox
-            {
-                FontSize = 12, Height = 35, Padding = new Thickness(10, 8, 8, 0),
-                Text = "", ToolTip = T("example"),
-                Foreground = Brush("#f0f3fa", "#2b3445"),
-                Background = Brush("#1d2938", "#eef1f6"),
-                BorderBrush = Brush("#303f50", "#d5dce7"), BorderThickness = new Thickness(1)
-            };
-            input.KeyDown += (_, e) => { if (e.Key == Key.Enter) { e.Handled = true; Submit(); } };
-            bar.Children.Add(input);
-            var send = Button("↗", Submit, T("send"));
-            send.Width = 37; send.Height = 35; send.Margin = new Thickness(6, 0, 0, 0);
-            send.Background = Brush("#e8bb70", "#7570e7");
-            send.Foreground = Brush("#222a35", "#ffffff");
-            Grid.SetColumn(send, 1); bar.Children.Add(send);
-            stack.Children.Add(bar);
+            double bottom = Top + Height;
+            mini = true;
+            Rebuild();
+            var area = SystemParameters.WorkArea;
+            Top = Math.Clamp(bottom - Height, area.Top, Math.Max(area.Top, area.Bottom - Height));
         }
-        else
-        {
-            var cancel = Button(T("cancelTimer"), () => CancelTimer(true));
-            cancel.Width = 252; cancel.Height = 27; cancel.FontSize = 11;
-            cancel.Margin = new Thickness(0);
-            stack.Children.Add(cancel);
-            input = null;
-        }
-        Refresh();
+        quickMode = true;
+        Restore();
+    }
+
+    void RefreshMascot()
+    {
+        if (mascot is null) return;
+        mascot.SetMood(MascotState.Resolve(DateTime.Now, target,
+            input?.IsKeyboardFocusWithin == true && !string.IsNullOrWhiteSpace(input.Text),
+            lastInteraction, happyUntil));
     }
 
     void Refresh()
@@ -416,8 +486,12 @@ internal sealed class LampikWindow : Window
             countdownLabel.Text = target is null ? (mini ? T("idle") : "— : —")
                 : TimeLeft(target.Value);
         if (tray is not null)
-            tray.Text = target is null ? T("title")
-                : T("appName") + " — " + TimeLeft(target.Value);
+        {
+            // NotifyIcon.Text cannot exceed 63 characters.
+            var status = target is null ? T("title") : T("appName") + " — " + TimeLeft(target.Value);
+            tray.Text = status.Length <= 63 ? status : status[..63];
+        }
+        RefreshMascot();
     }
 
     string TimeLeft(DateTime deadline)
@@ -441,7 +515,11 @@ internal sealed class LampikWindow : Window
         { message = T("help"); Refresh(); return; }
         if (reply == "status")
         { message = target is null ? T("noTimer") : T("statusScheduled", target.Value.ToString("HH:mm")); Refresh(); return; }
-        if (command is not null) Schedule(command.Action, command.Target);
+        if (command is not null)
+        {
+            Schedule(command.Action, command.Target);
+            if (quickMode) HideToTray();
+        }
     }
 
     string Label(PowerAction a) => a switch
@@ -453,6 +531,8 @@ internal sealed class LampikWindow : Window
     void Schedule(PowerAction a, DateTime deadline)
     {
         action = a; target = deadline; warned = false;
+        happyUntil = DateTime.Now.AddSeconds(3);
+        lastInteraction = DateTime.Now;
         message = T("scheduled", Label(a), deadline.ToString("HH:mm:ss"));
         Refresh();
         WarnSoon();
@@ -537,11 +617,15 @@ internal sealed class LampikWindow : Window
 
     void Restore()
     {
-        Show(); WindowState = WindowState.Normal; Activate(); input?.Focus();
+        Show();
+        WindowState = WindowState.Normal;
+        Activate();
+        FocusInput();
     }
 
     void HideToTray()
     {
+        quickMode = false;
         Hide();
         if (target is not null)
             tray?.ShowBalloonTip(2400, T("trayActiveTitle"), T("trayActiveBody"), Forms.ToolTipIcon.Info);
@@ -708,7 +792,7 @@ internal sealed class LampikWindow : Window
         int id = wparam.ToInt32();
         if (id == ShowId)
         {
-            if (IsVisible && IsActive) HideToTray(); else Restore();
+            if (IsVisible && IsActive) HideToTray(); else ShowQuick();
         }
         else if (id == CancelId) CancelTimer(true);
         else if (id == ChordId && pending is not null)
