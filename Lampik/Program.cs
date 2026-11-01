@@ -53,6 +53,7 @@ public sealed class Preferences
     public string Language { get; set; } =
         CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ru" ? "ru" : "en";
     public bool AlwaysOnTop { get; set; } = true;
+    public bool StartWithWindows { get; set; } = false;
     public double? WindowX { get; set; }
     public double? WindowY { get; set; }
     public List<KeyPreset> Hotkeys { get; set; } = Defaults();
@@ -219,6 +220,8 @@ internal sealed class LampikWindow : Window
     IntPtr handle;
     KeyPreset? pending;
     DateTime? target;
+    PowerCommand? pendingRecovery;
+    bool restorationExpired;
     PowerAction action;
     bool warned, exiting, mini, quickMode;
     DateTime lastInteraction = DateTime.Now;
@@ -240,7 +243,10 @@ internal sealed class LampikWindow : Window
         catch { prefs = new Preferences(); }
         prefs.Hotkeys ??= Preferences.Defaults();
         prefs.Language = I18n.Language(prefs.Language);
-        message = T("question");
+        var recovery = TimerPersistence.Load(DateTime.UtcNow);
+        pendingRecovery = recovery.Pending;
+        restorationExpired = recovery.Expired;
+        message = pendingRecovery is not null ? T("restorePrompt") : recovery.Expired ? T("restoreExpired") : T("question");
         Width = 310; Height = 352; MinWidth = MaxWidth = 310;
         MinHeight = MaxHeight = 352;
         try
@@ -265,6 +271,7 @@ internal sealed class LampikWindow : Window
         };
         Loaded += (_, _) =>
         {
+            if (Environment.GetCommandLineArgs().Any(a => a == "--tray")) HideToTray();
             var wa = SystemParameters.WorkArea;
             Left = prefs.WindowX is double x && double.IsFinite(x)
                 ? Math.Clamp(x, wa.Left, Math.Max(wa.Left, wa.Right - Width))
@@ -551,6 +558,22 @@ internal sealed class LampikWindow : Window
         if (!Commands.Parse(text, DateTime.Now, prefs.Language, out var command, out var reply))
         { message = reply; Refresh(); return; }
         if (reply == "cancel") { CancelTimer(true); return; }
+        if (reply == "restore")
+        {
+            if (pendingRecovery is { } old && old.Target > DateTime.Now)
+            {
+                pendingRecovery = null;
+                Schedule(old.Action, old.Target);
+                if (quickMode) HideToTray();
+            }
+            else
+            {
+                pendingRecovery = null;
+                message = T("restoreExpired");
+                Refresh();
+            }
+            return;
+        }
         if (reply == "help")
         { message = T("help"); Refresh(); return; }
         if (reply == "status")
@@ -571,6 +594,10 @@ internal sealed class LampikWindow : Window
     void Schedule(PowerAction a, DateTime deadline)
     {
         action = a; target = deadline; warned = false;
+        pendingRecovery = null;
+        try { TimerPersistence.Save(a, deadline); }
+        catch (IOException) { message = T("persistFailed"); }
+        catch (UnauthorizedAccessException) { message = T("persistFailed"); }
         happyUntil = DateTime.Now.AddSeconds(3);
         lastInteraction = DateTime.Now;
         message = T("scheduled", Label(a), deadline.ToString("HH:mm:ss"));
@@ -583,6 +610,7 @@ internal sealed class LampikWindow : Window
         if (target is DateTime deadline && DateTime.Now >= deadline)
         {
             target = null;
+            try { TimerPersistence.Cancel(); } catch (IOException) { } catch (UnauthorizedAccessException) { }
             if (DateTime.Now - deadline < TimeSpan.FromMinutes(2)) ExecutePowerAction(action);
             else message = T("late");
         }
@@ -600,8 +628,9 @@ internal sealed class LampikWindow : Window
 
     void CancelTimer(bool tell)
     {
-        bool active = target is not null;
-        target = null; warned = false;
+        bool active = target is not null || pendingRecovery is not null;
+        target = null; pendingRecovery = null; warned = false;
+        try { TimerPersistence.Cancel(); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         if (tell) message = active ? T("cancelled") : T("cancelNoTimer");
         Refresh();
     }
@@ -693,6 +722,8 @@ internal sealed class LampikWindow : Window
         if (target is not null && System.Windows.MessageBox.Show(
             T("quitConfirm"), T("appName"),
             MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        // Exit cancels the scheduled action explicitly, preventing stale restarts.
+        CancelTimer(false);
         exiting = true; Close();
     }
 
@@ -719,6 +750,8 @@ internal sealed class LampikWindow : Window
         if (dialog.ShowDialog() != true) return;
         var previousLanguage = prefs.Language;
         prefs = dialog.Result;
+        try { WindowsAutoStart.Apply(prefs.StartWithWindows); }
+        catch (Exception ex) { System.Windows.MessageBox.Show(ex.Message, T("saveError")); }
         prefs.Language = I18n.Language(prefs.Language);
         if (previousLanguage != prefs.Language)
         {
@@ -746,10 +779,11 @@ internal sealed class LampikWindow : Window
         foreach (int id in registeredIds) UnregisterHotKey(handle, id);
         registeredIds.Clear(); registered.Clear();
 
+        var firstStrokes = new HashSet<Stroke>();
         void Fixed(int id, string shortcut)
         {
             if (KeySyntax.Parse(shortcut, out var s) && RegisterHotKey(handle, id,
-                s[0].Modifiers, s[0].Key)) registeredIds.Add(id);
+                s[0].Modifiers, s[0].Key)) { registeredIds.Add(id); firstStrokes.Add(s[0]); }
         }
         Fixed(ShowId, "Ctrl+Alt+L");
         Fixed(CancelId, "Ctrl+Alt+X");
@@ -757,6 +791,8 @@ internal sealed class LampikWindow : Window
         {
             var p = prefs.Hotkeys[i];
             if (!p.Enabled || !KeySyntax.Parse(p.Shortcut, out var s)) continue;
+            if (firstStrokes.Contains(s[0])) { message = T("hotkeyConflict"); Refresh(); continue; }
+            firstStrokes.Add(s[0]);
             int id = 2000 + i;
             if (RegisterHotKey(handle, id, s[0].Modifiers, s[0].Key))
             {
@@ -768,7 +804,8 @@ internal sealed class LampikWindow : Window
     void StartChord(KeyPreset preset, Stroke second)
     {
         StopChord();
-        if (!RegisterHotKey(handle, ChordId, second.Modifiers, second.Key))
+        if (registered.Values.Any(item => item.strokes[0] == second) ||
+            !RegisterHotKey(handle, ChordId, second.Modifiers, second.Key))
         {
             message = T("chordBusy"); Refresh();
             return;
