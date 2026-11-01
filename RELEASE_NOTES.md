@@ -1,25 +1,17 @@
-# Lampik v0.4.1-beta.1 — Glass UI & Branded Icon
+# Lampik v0.5.0-beta.1 — Convenience & Safety
 
-**Pre-release · Windows 10/11 x64 · RU / EN**
+**Windows 10/11 x64 · Russian / English · Pre-release**
 
-## Переделанный дизайн / Full UI refresh
+## Changes
+- Optional **launch with Windows** (current user only); starts hidden in the system tray.
+- Scheduled timer snapshots saved locally with an atomic file replacement.
+- Safe recovery: after restart, future timers wait for a manual **restore / восстанови** command. They never run automatically from a stale saved state.
+- Expired or cancelled timers cannot silently shut down Windows on startup.
+- Shortcut conflict validation in the glass settings screen.
+- Windows CI checks for recovery and startup behavior.
 
-- **Вместо стандартного WPF-интерфейса** — современная тема с графитовыми и сине-стальными градиентами, полупрозрачными визуально панелями, тонкой подсвеченной обводкой, мягкими тенями и большими радиусами.
-- **Главное окно** — компактный виджет со светящейся лампочкой, аккуратным таймером, небольшим индикатором OFFLINE и округлым чатом.
-- **Настройки полностью переработаны:** карточки «Внешний вид» / «Appearance» и горячих клавиш; сегментированный выбор языка RU/EN; современные переключатели темы и режима поверх окон; округлённые поля сочетаний и длительности.
-- **Собственная иконка Lampik:** встроена в Windows EXE, отображается в заголовке окна и системном трее; заменён системный восклицательный знак.
-- Сохранились языки, локальный разбор команд, таймер, глобальные сочетания, режим мини-виджета и анимированный персонаж.
-
-## Downloads
-
-- **Lampik-Setup-0.4.1-beta.1-win-x64.exe** — Windows installer (RU/EN)
-- **Lampik.exe** — portable self-contained Windows executable
-
-## Важное / Important
-
-- Ветка пока экспериментальная. Рекомендуется проверять расположение элементов, поля настроек и поведение на масштабировании Windows 100%/125%/150%.
-- Установщик не подписан: Windows SmartScreen может показать предупреждение.
-- Сохраняйте документы перед тестированием выключения. Принудительного закрытия программ нет.
-- Если Windows спит или приложение не запущено, таймер не может сработать.
-
-Please report any rendering and functional issues through [GitHub Issues](../../issues).
+## Important
+- Timers still require the application to remain running and Windows to be awake.
+- The installer is not code-signed.
+- Save unsaved documents before trying power actions.
+- This beta has automatic build and parser tests, but still requires manual Windows UI testing.

@@ -25,6 +25,7 @@ internal sealed class LampikSettingsWindow : Window
     private bool languageEn;
     private bool darkEnabled;
     private bool alwaysOnTop;
+    private bool startWithWindows;
     private Button? ruButton;
     private Button? enButton;
     private ToggleButton? darkToggle;
@@ -49,6 +50,7 @@ internal sealed class LampikSettingsWindow : Window
         languageEn = current.Language == "en";
         darkEnabled = current.DarkTheme;
         alwaysOnTop = current.AlwaysOnTop;
+        startWithWindows = current.StartWithWindows;
         Result = current;
         Title = T("settings") + " — Lampik";
         WindowStyle = WindowStyle.None;
@@ -185,6 +187,19 @@ internal sealed class LampikSettingsWindow : Window
         Grid.SetColumn(topToggle, 1);
         topRow.Children.Add(topToggle);
         appearanceBody.Children.Add(topRow);
+        appearanceBody.Children.Add(GlassUI.Divider(dark));
+        var startupRow = new Grid { Height = 42 };
+        startupRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        startupRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        startupRow.Children.Add(GlassUI.Label(dark, T("autostart"), 12));
+        var startupToggle = GlassUI.Toggle(dark, "", startWithWindows,
+            value => startWithWindows = value, 65);
+        startupToggle.Content = startWithWindows ? "ON" : "OFF";
+        startupToggle.Click += (_, _) =>
+            startupToggle.Content = startupToggle.IsChecked == true ? "ON" : "OFF";
+        Grid.SetColumn(startupToggle, 1);
+        startupRow.Children.Add(startupToggle);
+        appearanceBody.Children.Add(startupRow);
 
         var shortcuts = GlassUI.Surface(dark, 19);
         shortcuts.Margin = new Thickness(0, 13, 0, 0);
@@ -315,11 +330,30 @@ internal sealed class LampikSettingsWindow : Window
                 Enabled = row.Enabled.IsChecked == true
             });
         }
+        var seen = new HashSet<Stroke>();
+        KeySyntax.Parse("Ctrl+Alt+L", out var fixedOpen);
+        KeySyntax.Parse("Ctrl+Alt+X", out var fixedCancel);
+        seen.Add(fixedOpen[0]);
+        seen.Add(fixedCancel[0]);
+        foreach (var preset in hotkeys.Where(p => p.Enabled))
+        {
+            KeySyntax.Parse(preset.Shortcut, out var seq);
+            if (!seen.Add(seq[0]) || (seq.Length == 2 && seen.Contains(seq[1])))
+            {
+                if (error is not null)
+                {
+                    error.Text = T("hotkeyConflict");
+                    error.Visibility = Visibility.Visible;
+                }
+                return;
+            }
+        }
         Result = new Preferences
         {
             Language = languageEn ? "en" : "ru",
             DarkTheme = darkEnabled,
             AlwaysOnTop = alwaysOnTop,
+            StartWithWindows = startWithWindows,
             Hotkeys = hotkeys,
             WindowX = original.WindowX,
             WindowY = original.WindowY

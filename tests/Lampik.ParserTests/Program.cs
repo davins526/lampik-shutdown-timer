@@ -75,3 +75,14 @@ if (uiError is not null) throw new Exception("Glass settings failed to construct
 Check(uiError is null, "Glass settings window smoke test");
 
 Console.WriteLine($"All {count} checks passed.");
+
+Check(Commands.Parse("восстанови", now, "ru", out cmd, out response) && response == "restore", "Russian recovery confirmation");
+Check(Commands.Parse("restore", now, "en", out cmd, out response) && response == "restore", "English recovery confirmation");
+var future = new TimerSnapshot { Active = true, Action = PowerAction.Shutdown, DueUtc = now.ToUniversalTime().AddMinutes(5) };
+var recovered = TimerPersistence.Evaluate(future, now.ToUniversalTime());
+Check(recovered.Pending?.Action == PowerAction.Shutdown && !recovered.Expired, "Future timer is pending only");
+Check(TimerPersistence.Evaluate(future, now.ToUniversalTime().AddMinutes(6)).Expired, "Expired timer cannot be armed");
+Check(TimerPersistence.Evaluate(new TimerSnapshot { Active = false }, now.ToUniversalTime()).Pending is null, "Cancellation tombstone prevents recovery");
+Check(TimerPersistence.Evaluate(new TimerSnapshot { Active = true, Action = PowerAction.Shutdown, DueUtc = now.ToUniversalTime().AddDays(40) }, now.ToUniversalTime()).Expired, "Invalid recovery horizon blocked");
+Check(WindowsAutoStart.CommandFor(@"C:\Program Files\Lampik\Lampik.exe").Contains(" --tray"), "Autostart uses tray mode");
+Check(I18n.T("ru", "autostart") != I18n.T("en", "autostart"), "Autostart setting is localized");
