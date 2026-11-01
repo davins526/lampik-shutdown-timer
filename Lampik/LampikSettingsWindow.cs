@@ -31,6 +31,7 @@ internal sealed class LampikSettingsWindow : Window
     private ToggleButton? darkToggle;
     private ToggleButton? topToggle;
     private TextBlock? error;
+    private Slider petSize = null!;
     public Preferences Result { get; private set; }
 
     private string T(string key, params object[] args)
@@ -201,6 +202,23 @@ internal sealed class LampikSettingsWindow : Window
         startupRow.Children.Add(startupToggle);
         appearanceBody.Children.Add(startupRow);
 
+        appearanceBody.Children.Add(GlassUI.Divider(dark));
+        var sizeCaption = GlassUI.Label(dark, T("petSize"), 12);
+        sizeCaption.Margin = new Thickness(0, 10, 0, 8);
+        appearanceBody.Children.Add(sizeCaption);
+        var sizeRow = new Grid();
+        sizeRow.ColumnDefinitions.Add(new ColumnDefinition());
+        sizeRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
+        petSize = new Slider { Minimum = 50, Maximum = 100, TickFrequency = 5,
+            IsSnapToTickEnabled = true, Value = PetWindow.NormalizeScale(current.PetScale) * 100,
+            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+        System.Windows.Automation.AutomationProperties.SetName(petSize, T("petSize"));
+        var sizeValue = GlassUI.Label(dark, $"{petSize.Value:0}%", 12, true);
+        petSize.ValueChanged += (_, _) => sizeValue.Text = $"{petSize.Value:0}%";
+        sizeRow.Children.Add(petSize);
+        Grid.SetColumn(sizeValue, 1); sizeRow.Children.Add(sizeValue);
+        appearanceBody.Children.Add(sizeRow);
+
         var shortcuts = GlassUI.Surface(dark, 19);
         shortcuts.Margin = new Thickness(0, 13, 0, 0);
         shortcuts.Padding = new Thickness(16, 14, 16, 13);
@@ -358,7 +376,8 @@ internal sealed class LampikSettingsWindow : Window
             WindowX = original.WindowX,
             WindowY = original.WindowY,
             PetX = original.PetX,
-            PetY = original.PetY
+            PetY = original.PetY,
+            PetScale = petSize.Value / 100
         };
         DialogResult = true;
         Close();

@@ -6,3 +6,5 @@ release-installer/
 *.user
 *.suo
 release-review/
+
+.build-home/

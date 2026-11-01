@@ -56,6 +56,7 @@ public sealed class Preferences
     public bool StartWithWindows { get; set; } = false;
     public double? WindowX { get; set; }
     public double? WindowY { get; set; }
+    public double PetScale { get; set; } = 0.75;
     public double? PetX { get; set; }
     public double? PetY { get; set; }
     public List<KeyPreset> Hotkeys { get; set; } = Defaults();
@@ -346,26 +347,6 @@ internal sealed class LampikWindow : Window
             }
         };
         var brand = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        var brandBadge = new Border
-        {
-            Width = 32, Height = 32, Background = GlassUI.AccentBackground(),
-            BorderBrush = GlassUI.AccentBorder(), BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(11), Margin = new Thickness(1, 0, 9, 0)
-        };
-        if (Icon is not null)
-        {
-            brandBadge.Child = new System.Windows.Controls.Image
-            {
-                Source = Icon, Width = 28, Height = 28, Stretch = Stretch.Uniform,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-        }
-        else
-        {
-            brandBadge.Child = GlassUI.Label(prefs.DarkTheme, "✦", 21, true);
-        }
-        brand.Children.Add(brandBadge);
         var brandText = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         brandText.Children.Add(GlassUI.Label(prefs.DarkTheme, T("appName"), 14, true));
         brandText.Children.Add(GlassUI.Label(prefs.DarkTheme, "POWER COMPANION", 8, false, true));
@@ -377,14 +358,16 @@ internal sealed class LampikWindow : Window
             Orientation = Orientation.Horizontal,
             VerticalAlignment = VerticalAlignment.Center
         };
-        var compact = GlassUI.Button(prefs.DarkTheme, "✦", TogglePet, 29, 30);
+        var compact = GlassUI.Button(prefs.DarkTheme, "\uE921", TogglePet, 27, 27);
+        compact.FontFamily = new System.Windows.Media.FontFamily("Segoe MDL2 Assets");
         compact.ToolTip = prefs.Language == "ru" ? "Режим питомца (Ctrl+Alt+L)" : "Pet Mode (Ctrl+Alt+L)"; controls.Children.Add(compact);
-        var settingsButton = GlassUI.Button(prefs.DarkTheme, "⚙", OpenSettings, 29, 30);
+        var settingsButton = GlassUI.Button(prefs.DarkTheme, "\uE713", OpenSettings, 27, 27);
+        settingsButton.FontFamily = new System.Windows.Media.FontFamily("Segoe MDL2 Assets");
         settingsButton.Margin = new Thickness(5, 0, 0, 0);
         settingsButton.ToolTip = T("settings"); controls.Children.Add(settingsButton);
-        var close = GlassUI.Button(prefs.DarkTheme, "×", HideToTray, 29, 30);
+        var close = GlassUI.Button(prefs.DarkTheme, "\uE8BB", HideToTray, 27, 27);
         close.Margin = new Thickness(5, 0, 0, 0);
-        close.ToolTip = T("hide"); close.FontSize = 19; controls.Children.Add(close);
+        close.ToolTip = T("hide"); close.FontFamily = new System.Windows.Media.FontFamily("Segoe MDL2 Assets"); close.FontSize = 12; controls.Children.Add(close);
         Grid.SetColumn(controls, 1); header.Children.Add(controls);
         body.Children.Add(header);
 
@@ -759,6 +742,7 @@ internal sealed class LampikWindow : Window
         pet ??= new PetWindow(prefs, Restore, () => CancelTimer(true), OpenSettings, Quit,
             (x, y) => { prefs.PetX = x; prefs.PetY = y;
                 try { SaveSettings(); } catch (IOException) { } catch (UnauthorizedAccessException) { } });
+        pet.SetScale(prefs.PetScale);
         pet.UpdateLanguage(prefs.Language);
         pet.Show();
         pet.Resume();
@@ -799,9 +783,12 @@ internal sealed class LampikWindow : Window
         var dialog = new LampikSettingsWindow(prefs) { Owner = this };
         if (dialog.ShowDialog() != true) return;
         var previousLanguage = prefs.Language;
+        bool previousStartup = prefs.StartWithWindows;
         prefs = dialog.Result;
-        try { WindowsAutoStart.Apply(prefs.StartWithWindows); }
-        catch (Exception ex) { System.Windows.MessageBox.Show(ex.Message, T("saveError")); }
+        prefs.Language = I18n.Language(prefs.Language);
+        bool startupSaved = WindowsAutoStart.TryApplyChange(previousStartup, prefs.StartWithWindows,
+            WindowsAutoStart.Apply, out bool effectiveStartup);
+        prefs.StartWithWindows = effectiveStartup;
         prefs.Language = I18n.Language(prefs.Language);
         if (previousLanguage != prefs.Language)
         {
@@ -814,6 +801,8 @@ internal sealed class LampikWindow : Window
         {
             System.Windows.MessageBox.Show(ex.Message, T("saveError"), MessageBoxButton.OK, MessageBoxImage.Warning);
         }
+        if (!startupSaved) System.Windows.MessageBox.Show(T("autostartDenied"), T("settings"),
+            MessageBoxButton.OK, MessageBoxImage.Information);
         Topmost = prefs.AlwaysOnTop;
         Title = T("title");
         RegisterHotkeys();

@@ -13,6 +13,16 @@ internal static class WindowsAutoStart
     public static string CommandFor(string executable) =>
         "\"" + executable.Replace("\"", "") + "\" --tray";
 
+    // Keep unrelated settings independent of registry permissions.
+    internal static bool TryApplyChange(bool previous, bool requested, Action<bool> apply, out bool effective)
+    {
+        effective = previous;
+        if (previous == requested) return true;
+        try { apply(requested); effective = requested; return true; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        { return false; }
+    }
+
     public static void Apply(bool enabled)
     {
         using var key = Registry.CurrentUser.CreateSubKey(KeyPath, writable: true)

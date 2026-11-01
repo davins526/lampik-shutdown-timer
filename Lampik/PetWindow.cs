@@ -23,6 +23,8 @@ internal sealed class PetWindow : Window
     Point press;
     bool dragging;
     IntPtr hwnd;
+    double scale = .75;
+    internal static double NormalizeScale(double value) => double.IsFinite(value) ? Math.Clamp(value, .5, 1) : .75;
 
     [DllImport("gdi32.dll")] static extern IntPtr CreateEllipticRgn(int left, int top, int right, int bottom);
     [DllImport("gdi32.dll")] static extern IntPtr CreateRoundRectRgn(int left, int top, int right, int bottom, int w, int h);
@@ -64,7 +66,7 @@ internal sealed class PetWindow : Window
         var area = SystemParameters.WorkArea;
         Left = prefs.PetX is double x && double.IsFinite(x) ? x : area.Right - Width - 16;
         Top = prefs.PetY is double y && double.IsFinite(y) ? y : area.Bottom - Height - 16;
-        ClampPosition();
+        SetScale(prefs.PetScale);
         SourceInitialized += (_, _) => { hwnd = new WindowInteropHelper(this).Handle; ApplyRegion(); };
         DpiChanged += (_, _) => Dispatcher.BeginInvoke(new Action(ApplyRegion));
         MouseEnter += (_, _) => mascot.SetMood(MascotMood.Listening);
@@ -102,6 +104,15 @@ internal sealed class PetWindow : Window
         exitItem.Header = I18n.T(language, "exit");
     }
 
+    public void SetScale(double value)
+    {
+        scale = NormalizeScale(value);
+        Width = mascot.Width = 220 * scale;
+        Height = mascot.Height = 145 * scale;
+        ClampPosition();
+        if (hwnd != IntPtr.Zero) ApplyRegion();
+    }
+
     void ClampPosition()
     {
         // Screen coordinates are device pixels; WPF positions are DIPs.
@@ -117,8 +128,8 @@ internal sealed class PetWindow : Window
     void ApplyRegion()
     {
         var dpi = VisualTreeHelper.GetDpi(this);
-        int X(double x) => (int)Math.Round(x * dpi.DpiScaleX);
-        int Y(double y) => (int)Math.Round(y * dpi.DpiScaleY);
+        int X(double x) => (int)Math.Round(x * scale * dpi.DpiScaleX);
+        int Y(double y) => (int)Math.Round(y * scale * dpi.DpiScaleY);
         // Include a soft glow and the full floating animation range, without a rectangular input surface.
         var bulb = CreateEllipticRgn(X(55), Y(9), X(165), Y(116));
         var cap = CreateRoundRectRgn(X(83), Y(98), X(137), Y(132), X(12), Y(12));

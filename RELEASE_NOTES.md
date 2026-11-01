@@ -1,6 +1,13 @@
-# Lampik v0.7.0-beta.1 — Card & Pet
+# Lampik v0.7.0-beta.2 — Card & Pet
 
 Pre-release · Windows 10/11 x64 · RU / EN
+
+## Beta 2
+- Настройки → Внешний вид → Размер лампочки: 50–100%, по умолчанию 75%. Размер и нативная маска кликов масштабируются вместе; выбор сохраняется.
+- Убрана повторная иконка из шапки карточки, кнопки управления уменьшены и используют системные пиктограммы Windows.
+- Изменение размера больше не требует доступа к реестру автозапуска. Отказ Windows при изменении автозапуска не мешает сохранять остальные настройки.
+- Добавлена обложка проекта в README.
+
 
 - Единственное основное окно — компактная glass-карточка 310 × 248 DIP (303 DIP с активным таймером). Старый большой экран удалён.
 - Быстрые кнопки 15 мин / 30 мин / 1 час / 2 часа в один ряд по ширине карточки.
@@ -10,6 +17,6 @@ Pre-release · Windows 10/11 x64 · RU / EN
 - Ctrl+Alt+L переключает Card ↔ Pet. Esc и кнопки сворачивания оставляют питомца на рабочем столе. Автозапуск --tray тоже открывает Pet Mode.
 - Сохранены RU/EN, парсер команд, глобальные сочетания, таймеры, автозапуск, безопасное подтверждаемое восстановление, предупреждение за минуту с отменой и +10 минут, собственная иконка.
 
-Portable Lampik.exe включает .NET; Lampik-Setup-0.7.0-beta.1-win-x64.exe — установщик для текущего пользователя.
+Portable Lampik.exe включает .NET; Lampik-Setup-0.7.0-beta.2-win-x64.exe — установщик для текущего пользователя.
 
-Validation: local Windows Release build and 56 automated checks, including native pet input region and menu routing. Real Main Card reviewed with an active 30-minute timer and cancellation. CI is required before publication. Full multi-monitor/mixed-DPI, physical sleep/hibernate, and installer uninstall testing remain manual checks. Edge snapping is not enabled in this beta.
+Validation: local Windows Release build and 72 automated checks, including native pet input region and menu routing. Real Main Card reviewed with an active 30-minute timer and cancellation. CI is required before publication. Full multi-monitor/mixed-DPI, physical sleep/hibernate, and installer uninstall testing remain manual checks. Edge snapping is not enabled in this beta.
