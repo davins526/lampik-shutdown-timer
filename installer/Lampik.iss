@@ -1,5 +1,5 @@
 #define MyAppName "Lampik"
-#define MyAppVersion "0.5.0-beta.1"
+#define MyAppVersion "0.6.0-beta.1"
 #define MyAppPublisher "Daniil Goncharov"
 #define MyAppExeName "Lampik.exe"
 
@@ -13,7 +13,7 @@ DefaultDirName={localappdata}\Programs\Lampik
 DefaultGroupName={#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
 OutputDir=..\release-installer
-OutputBaseFilename=Lampik-Setup-0.5.0-beta.1-win-x64
+OutputBaseFilename=Lampik-Setup-0.6.0-beta.1-win-x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
