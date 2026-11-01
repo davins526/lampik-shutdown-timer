@@ -29,7 +29,7 @@ internal sealed class PowerWarningWindow : Window
         MinHeight = MaxHeight = Height;
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
-        Background = Brushes.Transparent;
+        Background = System.Windows.Media.Brushes.Transparent;
         ResizeMode = ResizeMode.NoResize;
         Topmost = true;
         ShowInTaskbar = false;
@@ -58,7 +58,7 @@ internal sealed class PowerWarningWindow : Window
         layout.Children.Add(subtitle);
 
         counter = GlassUI.Label(true, "01:00", 27, true);
-        counter.HorizontalAlignment = HorizontalAlignment.Center;
+        counter.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
         counter.Foreground = GlassUI.Solid("#FFE4BA");
         layout.Children.Add(counter);
 
@@ -70,7 +70,7 @@ internal sealed class PowerWarningWindow : Window
         var cancelButton = GlassUI.Button(true, T("cancelTimer"), CancelNow, 174, 46, false, 14);
         cancelButton.Background = GlassUI.Gradient("#F3848C", "#D74662", 135);
         cancelButton.BorderBrush = GlassUI.Solid("#FFA6AF");
-        cancelButton.Foreground = Brushes.White;
+        cancelButton.Foreground = System.Windows.Media.Brushes.White;
         cancelButton.FontSize = 14;
         buttons.Children.Add(cancelButton);
 
