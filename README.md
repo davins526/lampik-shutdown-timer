@@ -1,8 +1,12 @@
+![Lampik — светящийся помощник и таймер выключения для Windows](assets/lampik-cover.jpg)
+
 # Lampik — Windows Shutdown Timer
 
 **Лампик** — маленький помощник для Windows, который выключает компьютер по таймеру. Вместо громоздких меню — светящаяся лампочка, одно поле ввода и горячие клавиши.
 
 *Set a shutdown timer in seconds. A glowing desktop companion for Windows, built with C# and WPF.*
+
+*Обложка — иллюстрация проекта, созданная с помощью генерации изображений, а не скриншот интерфейса.*
 
 **v0.7.0-beta.1 · Windows 10/11 x64 · WPF / .NET 8**
 
