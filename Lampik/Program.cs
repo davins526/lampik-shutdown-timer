@@ -230,6 +230,8 @@ internal sealed class LampikWindow : Window
     LampikMascot? mascot;
     string message = "";
     TextBox? input;
+    Button? mainCancelButton;
+    PowerWarningWindow? warningWindow;
     TextBlock? messageLabel, countdownLabel;
     Ellipse? halo;
     readonly string settingsFile = Path.Combine(
@@ -322,7 +324,7 @@ internal sealed class LampikWindow : Window
 
     void Rebuild()
     {
-        Height = mini ? 208 : 352;
+        Height = (mini ? 208 : 352) + (target is not null || pendingRecovery is not null ? 55 : 0);
         MinHeight = MaxHeight = Height;
         var surface = GlassUI.WindowSurface(prefs.DarkTheme, 23);
         surface.Padding = new Thickness(14, 12, 14, 12);
@@ -473,6 +475,18 @@ internal sealed class LampikWindow : Window
         Grid.SetColumn(send, 1); entry.Children.Add(send);
         bar.Child = entry;
         body.Children.Add(bar);
+
+        // Explicitly accessible in both normal and compact modes, not hidden in tray.
+        mainCancelButton = GlassUI.Button(prefs.DarkTheme, T("cancelTimer"),
+            () => CancelTimer(true), 280, 47, false, 15);
+        mainCancelButton.Margin = new Thickness(0, 8, 0, 0);
+        mainCancelButton.Background = GlassUI.Gradient("#F3848C", "#CE405A", 125);
+        mainCancelButton.BorderBrush = GlassUI.Solid("#F99DA9");
+        mainCancelButton.Foreground = Brushes.White;
+        mainCancelButton.FontSize = 15;
+        mainCancelButton.Visibility = target is not null || pendingRecovery is not null
+            ? Visibility.Visible : Visibility.Collapsed;
+        body.Children.Add(mainCancelButton);
         Refresh();
     }
 
@@ -529,6 +543,28 @@ internal sealed class LampikWindow : Window
 
     void Refresh()
     {
+        // Reserve space for the large cancellation control only while a timer exists.
+        if (mainCancelButton is not null)
+        {
+            bool active = target is not null || pendingRecovery is not null;
+            var desired = active ? Visibility.Visible : Visibility.Collapsed;
+            if (mainCancelButton.Visibility != desired)
+            {
+                double bottom = Top + Height;
+                mainCancelButton.Visibility = desired;
+                double nextHeight = (mini ? 208 : 352) + (active ? 55 : 0);
+                MinHeight = 0;
+                MaxHeight = double.PositiveInfinity;
+                Height = nextHeight;
+                MinHeight = MaxHeight = nextHeight;
+                if (IsLoaded)
+                {
+                    var area = SystemParameters.WorkArea;
+                    Top = Math.Clamp(bottom - Height, area.Top,
+                        Math.Max(area.Top, area.Bottom - Height));
+                }
+            }
+        }
         if (messageLabel is not null) messageLabel.Text = message;
         if (countdownLabel is not null)
             countdownLabel.Text = target is null ? (mini ? T("idle") : "— : —")
@@ -594,6 +630,7 @@ internal sealed class LampikWindow : Window
 
     void Schedule(PowerAction a, DateTime deadline)
     {
+        DismissWarning();
         action = a; target = deadline; warned = false;
         pendingRecovery = null;
         try { TimerPersistence.Save(a, deadline); }
@@ -610,25 +647,52 @@ internal sealed class LampikWindow : Window
     {
         if (target is DateTime deadline && DateTime.Now >= deadline)
         {
+            var now = DateTime.Now;
             target = null;
+            DismissWarning();
             try { TimerPersistence.Cancel(); } catch (IOException) { } catch (UnauthorizedAccessException) { }
-            if (DateTime.Now - deadline < TimeSpan.FromMinutes(2)) ExecutePowerAction(action);
+            if (TimerSafety.ShouldExecute(deadline, now)) ExecutePowerAction(action);
             else message = T("late");
         }
         WarnSoon();
+        if (target is DateTime upcoming && warningWindow is not null)
+            warningWindow.UpdateRemaining(upcoming - DateTime.Now);
         Refresh();
     }
 
     void WarnSoon()
     {
-        if (warned || target is not DateTime deadline || deadline - DateTime.Now > TimeSpan.FromMinutes(1)) return;
+        if (warned || target is not DateTime deadline ||
+            !TimerSafety.ShouldWarn(deadline, DateTime.Now)) return;
         warned = true;
+        warningWindow = new PowerWarningWindow(prefs.Language, action,
+            () => CancelTimer(true), SnoozeTimer);
+        warningWindow.UpdateRemaining(deadline - DateTime.Now);
+        warningWindow.Show();
+        warningWindow.Activate();
         tray?.ShowBalloonTip(7000, T("soonTitle"),
             T("soonBody", Label(action)), Forms.ToolTipIcon.Warning);
     }
 
+    void SnoozeTimer()
+    {
+        if (target is null) return;
+        var actionToReschedule = action;
+        Schedule(actionToReschedule, TimerSafety.Snooze(DateTime.Now));
+        message = T("snoozed");
+        Refresh();
+    }
+
+    void DismissWarning()
+    {
+        var popup = warningWindow;
+        warningWindow = null;
+        popup?.Dismiss();
+    }
+
     void CancelTimer(bool tell)
     {
+        DismissWarning();
         bool active = target is not null || pendingRecovery is not null;
         target = null; pendingRecovery = null; warned = false;
         try { TimerPersistence.Cancel(); } catch (IOException) { } catch (UnauthorizedAccessException) { }
@@ -731,7 +795,7 @@ internal sealed class LampikWindow : Window
     void OnClosing(object? sender, CancelEventArgs e)
     {
         if (!exiting) { e.Cancel = true; HideToTray(); return; }
-        timer.Stop(); StopChord();
+        timer.Stop(); StopChord(); DismissWarning();
         foreach (int id in registeredIds) UnregisterHotKey(handle, id);
         tray?.Dispose();
         trayIcon?.Dispose();
