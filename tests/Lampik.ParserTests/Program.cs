@@ -1,5 +1,20 @@
 using Lampik;
 
+// Optional local visual review harness; no power commands or persisted timers.
+if (args.Contains("--pet-preview"))
+{
+    var thread = new System.Threading.Thread(() =>
+    {
+        var app = new System.Windows.Application();
+        var pet = new PetWindow(new Preferences(), () => app.Shutdown(), () => { },
+            () => { }, () => app.Shutdown(), (_, _) => { }) { ShowInTaskbar = true };
+        app.Run(pet);
+    });
+    thread.SetApartmentState(System.Threading.ApartmentState.STA);
+    thread.Start(); thread.Join();
+    return;
+}
+
 var now = new DateTime(2026, 11, 1, 20, 0, 0);
 var count = 0;
 void Check(bool condition, string name)
@@ -74,7 +89,7 @@ uiThread.Join();
 if (uiError is not null) throw new Exception("Glass settings failed to construct", uiError);
 Check(uiError is null, "Glass settings window smoke test");
 
-Console.WriteLine($"All {count} checks passed.");
+
 
 Check(Commands.Parse("восстанови", now, "ru", out cmd, out response) && response == "restore", "Russian recovery confirmation");
 Check(Commands.Parse("restore", now, "en", out cmd, out response) && response == "restore", "English recovery confirmation");
@@ -113,3 +128,52 @@ warningThread.SetApartmentState(System.Threading.ApartmentState.STA);
 warningThread.Start();
 warningThread.Join();
 if (warningError is not null) throw new Exception("Power warning smoke test failed", warningError);
+
+// Verify the real native input region, not just WPF hit testing.
+Exception? petError = null;
+var petThread = new System.Threading.Thread(() =>
+{
+    try
+    {
+        int opened = 0, cancelled = 0;
+        var pet = new PetWindow(new Preferences { PetX = double.NaN, PetY = double.PositiveInfinity },
+            () => opened++, () => cancelled++, () => { }, () => { }, (_, _) => { });
+        var handle = new System.Windows.Interop.WindowInteropHelper(pet).EnsureHandle();
+        Check(pet.AllowsTransparency && pet.Topmost && !pet.ShowInTaskbar &&
+            pet.WindowStyle == System.Windows.WindowStyle.None, "Pet has transparent borderless topmost surface");
+        Check(double.IsFinite(pet.Left) && double.IsFinite(pet.Top), "Invalid saved pet position recovers safely");
+        var region = NativeRegion.CreateRectRgn(0, 0, 0, 0);
+        try
+        {
+            Check(NativeRegion.GetWindowRgn(handle, region) != 0, "Pet installs native input region");
+            var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(pet);
+            Check(!NativeRegion.PtInRegion(region, 0, 0), "Transparent corner passes clicks to desktop");
+            Check(NativeRegion.PtInRegion(region, (int)(110 * dpi.DpiScaleX), (int)(70 * dpi.DpiScaleY)),
+                "Bulb body remains clickable");
+        }
+        finally { NativeRegion.DeleteObject(region); }
+        pet.UpdateLanguage("ru");
+        var open = (System.Windows.Controls.MenuItem)pet.ContextMenu.Items[0];
+        Check((string)open.Header == I18n.T("ru", "open"), "Pet menu Russian");
+        open.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
+        ((System.Windows.Controls.MenuItem)pet.ContextMenu.Items[1]).RaiseEvent(
+            new System.Windows.RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
+        Check(opened == 1 && cancelled == 1, "Pet menu routes open and cancellation");
+        pet.UpdateLanguage("en");
+        Check((string)open.Header == I18n.T("en", "open"), "Pet menu English");
+        pet.Close();
+    }
+    catch (Exception ex) { petError = ex; }
+});
+petThread.SetApartmentState(System.Threading.ApartmentState.STA);
+petThread.Start(); petThread.Join();
+if (petError is not null) throw new Exception("Pet smoke test failed", petError);
+Console.WriteLine($"All {count} checks passed.");
+
+internal static class NativeRegion
+{
+    [System.Runtime.InteropServices.DllImport("gdi32.dll")] internal static extern IntPtr CreateRectRgn(int l, int t, int r, int b);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] internal static extern int GetWindowRgn(IntPtr hwnd, IntPtr region);
+    [System.Runtime.InteropServices.DllImport("gdi32.dll")] internal static extern bool PtInRegion(IntPtr region, int x, int y);
+    [System.Runtime.InteropServices.DllImport("gdi32.dll")] internal static extern bool DeleteObject(IntPtr obj);
+}

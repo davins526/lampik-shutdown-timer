@@ -356,7 +356,9 @@ internal sealed class LampikSettingsWindow : Window
             StartWithWindows = startWithWindows,
             Hotkeys = hotkeys,
             WindowX = original.WindowX,
-            WindowY = original.WindowY
+            WindowY = original.WindowY,
+            PetX = original.PetX,
+            PetY = original.PetY
         };
         DialogResult = true;
         Close();

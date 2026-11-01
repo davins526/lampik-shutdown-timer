@@ -56,6 +56,8 @@ public sealed class Preferences
     public bool StartWithWindows { get; set; } = false;
     public double? WindowX { get; set; }
     public double? WindowY { get; set; }
+    public double? PetX { get; set; }
+    public double? PetY { get; set; }
     public List<KeyPreset> Hotkeys { get; set; } = Defaults();
     public static List<KeyPreset> Defaults() => new()
     {
@@ -224,7 +226,8 @@ internal sealed class LampikWindow : Window
     PowerCommand? pendingRecovery;
     bool restorationExpired;
     PowerAction action;
-    bool warned, exiting, mini, quickMode;
+    bool warned, exiting;
+    PetWindow? pet;
     DateTime lastInteraction = DateTime.Now;
     DateTime happyUntil = DateTime.MinValue;
     LampikMascot? mascot;
@@ -233,7 +236,6 @@ internal sealed class LampikWindow : Window
     Button? mainCancelButton;
     PowerWarningWindow? warningWindow;
     TextBlock? messageLabel, countdownLabel;
-    Ellipse? halo;
     readonly string settingsFile = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lampik", "settings.json");
 
@@ -250,8 +252,8 @@ internal sealed class LampikWindow : Window
         pendingRecovery = recovery.Pending;
         restorationExpired = recovery.Expired;
         message = pendingRecovery is not null ? T("restorePrompt") : recovery.Expired ? T("restoreExpired") : T("question");
-        Width = 310; Height = 352; MinWidth = MaxWidth = 310;
-        MinHeight = MaxHeight = 352;
+        Width = 310; Height = 248; MinWidth = MaxWidth = 310;
+        MinHeight = MaxHeight = 248;
         try
         {
             Icon = System.Windows.Media.Imaging.BitmapFrame.Create(
@@ -262,7 +264,7 @@ internal sealed class LampikWindow : Window
         AllowsTransparency = true;
         Background = Brushes.Transparent;
         ResizeMode = ResizeMode.NoResize;
-        ShowInTaskbar = false;
+        ShowInTaskbar = true;
         Topmost = prefs.AlwaysOnTop;
         Title = T("title");
         Rebuild();
@@ -274,7 +276,6 @@ internal sealed class LampikWindow : Window
         };
         Loaded += (_, _) =>
         {
-            if (Environment.GetCommandLineArgs().Any(a => a == "--tray")) HideToTray();
             var wa = SystemParameters.WorkArea;
             Left = prefs.WindowX is double x && double.IsFinite(x)
                 ? Math.Clamp(x, wa.Left, Math.Max(wa.Left, wa.Right - Width))
@@ -282,7 +283,8 @@ internal sealed class LampikWindow : Window
             Top = prefs.WindowY is double y && double.IsFinite(y)
                 ? Math.Clamp(y, wa.Top, Math.Max(wa.Top, wa.Bottom - Height))
                 : wa.Bottom - Height - 15;
-            FocusInput();
+            if (Environment.GetCommandLineArgs().Any(a => a == "--tray")) HideToTray();
+            else FocusInput();
         };
         PreviewKeyDown += (_, e) =>
         {
@@ -324,7 +326,8 @@ internal sealed class LampikWindow : Window
 
     void Rebuild()
     {
-        Height = (mini ? 208 : 352) + (target is not null || pendingRecovery is not null ? 55 : 0);
+        MinHeight = 0; MaxHeight = double.PositiveInfinity;
+        Height = 248 + (target is not null || pendingRecovery is not null ? 55 : 0);
         MinHeight = MaxHeight = Height;
         var surface = GlassUI.WindowSurface(prefs.DarkTheme, 23);
         surface.Padding = new Thickness(14, 12, 14, 12);
@@ -374,8 +377,8 @@ internal sealed class LampikWindow : Window
             Orientation = Orientation.Horizontal,
             VerticalAlignment = VerticalAlignment.Center
         };
-        var compact = GlassUI.Button(prefs.DarkTheme, mini ? "▴" : "▾", ToggleMini, 29, 30);
-        compact.ToolTip = T("mini"); controls.Children.Add(compact);
+        var compact = GlassUI.Button(prefs.DarkTheme, "✦", TogglePet, 29, 30);
+        compact.ToolTip = prefs.Language == "ru" ? "Режим питомца (Ctrl+Alt+L)" : "Pet Mode (Ctrl+Alt+L)"; controls.Children.Add(compact);
         var settingsButton = GlassUI.Button(prefs.DarkTheme, "⚙", OpenSettings, 29, 30);
         settingsButton.Margin = new Thickness(5, 0, 0, 0);
         settingsButton.ToolTip = T("settings"); controls.Children.Add(settingsButton);
@@ -385,19 +388,6 @@ internal sealed class LampikWindow : Window
         Grid.SetColumn(controls, 1); header.Children.Add(controls);
         body.Children.Add(header);
 
-        if (!mini)
-        {
-            var stage = GlassUI.Surface(prefs.DarkTheme, 20);
-            stage.Height = 142;
-            stage.Margin = new Thickness(0, 10, 0, 7);
-            stage.Background = prefs.DarkTheme
-                ? GlassUI.Gradient("#202E46", "#111D30", 115)
-                : GlassUI.Gradient("#F9FBFF", "#EDF3FC", 115);
-            mascot = new LampikMascot { Width = 252, Height = 140 };
-            stage.Child = mascot;
-            body.Children.Add(stage);
-        }
-        else
         {
             var strip = GlassUI.Surface(prefs.DarkTheme, 17);
             strip.Height = 55;
@@ -411,32 +401,18 @@ internal sealed class LampikWindow : Window
             countdownLabel = GlassUI.Label(prefs.DarkTheme, "— : —", 19, true);
             countdownLabel.Foreground = GlassUI.Solid("#F9D797");
             info.Children.Add(countdownLabel);
-            info.Children.Add(GlassUI.Label(prefs.DarkTheme, T("miniHint"), 10, false, true));
+            info.Children.Add(GlassUI.Label(prefs.DarkTheme, T("localChip"), 10, false, true));
             Grid.SetColumn(info, 1); grid.Children.Add(info);
             strip.Child = grid;
             body.Children.Add(strip);
         }
 
-        if (!mini)
-        {
-            var timerLine = new Grid { Height = 35, Margin = new Thickness(2, 0, 2, 0) };
-            timerLine.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            timerLine.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            countdownLabel = GlassUI.Label(prefs.DarkTheme, "— : —", 23, true);
-            countdownLabel.Foreground = GlassUI.Solid("#FFDA95");
-            timerLine.Children.Add(countdownLabel);
-            var pill = GlassUI.Chip(prefs.DarkTheme, T("localChip"));
-            pill.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(pill, 1); timerLine.Children.Add(pill);
-            body.Children.Add(timerLine);
-        }
-
-        messageLabel = GlassUI.Label(prefs.DarkTheme, message, mini ? 11 : 12, false, true);
+        messageLabel = GlassUI.Label(prefs.DarkTheme, message, 11, false, true);
         messageLabel.TextAlignment = TextAlignment.Left;
-        messageLabel.TextTrimming = TextTrimming.CharacterEllipsis;
+        messageLabel.TextTrimming = TextTrimming.None;
         messageLabel.TextWrapping = TextWrapping.Wrap;
-        messageLabel.Height = mini ? 22 : 29;
-        messageLabel.Margin = new Thickness(3, 1, 0, mini ? 5 : 7);
+        messageLabel.Height = 27;
+        messageLabel.Margin = new Thickness(3, 1, 0, 5);
         body.Children.Add(messageLabel);
 
         var bar = GlassUI.Surface(prefs.DarkTheme, 15);
@@ -476,7 +452,30 @@ internal sealed class LampikWindow : Window
         bar.Child = entry;
         body.Children.Add(bar);
 
-        // Explicitly accessible in both normal and compact modes, not hidden in tray.
+        var presets = new Grid { Height = 32, Margin = new Thickness(0, 8, 0, 0) };
+        foreach (int minutes in new[] { 15, 30, 60, 120 })
+        {
+            int column = presets.ColumnDefinitions.Count;
+            presets.ColumnDefinitions.Add(new ColumnDefinition());
+            string label = minutes switch
+            {
+                60 => prefs.Language == "ru" ? "1 час" : "1 hour",
+                120 => prefs.Language == "ru" ? "2 часа" : "2 hours",
+                _ => minutes + (prefs.Language == "ru" ? " мин" : " min")
+            };
+            var preset = GlassUI.Button(prefs.DarkTheme, label,
+                () => Schedule(PowerAction.Shutdown, DateTime.Now.AddMinutes(minutes)), 64, 30);
+            preset.FontSize = 11;
+            preset.HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch;
+            preset.Width = double.NaN;
+            preset.Margin = new Thickness(column == 0 ? 0 : 5, 0, 0, 0);
+            preset.ToolTip = prefs.Language == "ru" ? $"Выключить через {minutes} минут" : $"Shut down in {minutes} minutes";
+            Grid.SetColumn(preset, column);
+            presets.Children.Add(preset);
+        }
+        body.Children.Add(presets);
+
+        // Keep cancellation reachable in the only main card, including pending recovery.
         mainCancelButton = GlassUI.Button(prefs.DarkTheme, T("cancelTimer"),
             () => CancelTimer(true), 280, 47, false, 15);
         mainCancelButton.Margin = new Thickness(0, 8, 0, 0);
@@ -490,15 +489,9 @@ internal sealed class LampikWindow : Window
         Refresh();
     }
 
-    void ToggleMini()
+    void TogglePet()
     {
-        double previousBottom = Top + Height;
-        mini = !mini;
-        quickMode = false;
-        Rebuild();
-        var area = SystemParameters.WorkArea;
-        Top = Math.Clamp(previousBottom - Height, area.Top, Math.Max(area.Top, area.Bottom - Height));
-        FocusInput();
+        if (pet?.IsVisible == true) Restore(); else HideToTray();
     }
 
     void RememberPosition()
@@ -518,27 +511,13 @@ internal sealed class LampikWindow : Window
         Keyboard.Focus(input);
     }), DispatcherPriority.Input);
 
-    void ShowQuick()
-    {
-        // Ctrl+Alt+L is the single-action popup: show a small command bar at its last position.
-        if (!mini)
-        {
-            double bottom = Top + Height;
-            mini = true;
-            Rebuild();
-            var area = SystemParameters.WorkArea;
-            Top = Math.Clamp(bottom - Height, area.Top, Math.Max(area.Top, area.Bottom - Height));
-        }
-        quickMode = true;
-        Restore();
-    }
-
     void RefreshMascot()
     {
-        if (mascot is null) return;
-        mascot.SetMood(MascotState.Resolve(DateTime.Now, target,
+        var mood = MascotState.Resolve(DateTime.Now, target,
             input?.IsKeyboardFocusWithin == true && !string.IsNullOrWhiteSpace(input.Text),
-            lastInteraction, happyUntil));
+            lastInteraction, happyUntil);
+        mascot?.SetMood(mood);
+        pet?.SetMood(mood);
     }
 
     void Refresh()
@@ -552,7 +531,7 @@ internal sealed class LampikWindow : Window
             {
                 double bottom = Top + Height;
                 mainCancelButton.Visibility = desired;
-                double nextHeight = (mini ? 208 : 352) + (active ? 55 : 0);
+                double nextHeight = 248 + (active ? 55 : 0);
                 MinHeight = 0;
                 MaxHeight = double.PositiveInfinity;
                 Height = nextHeight;
@@ -567,7 +546,7 @@ internal sealed class LampikWindow : Window
         }
         if (messageLabel is not null) messageLabel.Text = message;
         if (countdownLabel is not null)
-            countdownLabel.Text = target is null ? (mini ? T("idle") : "— : —")
+            countdownLabel.Text = target is null ? T("idle")
                 : TimeLeft(target.Value);
         if (tray is not null)
         {
@@ -601,7 +580,6 @@ internal sealed class LampikWindow : Window
             {
                 pendingRecovery = null;
                 Schedule(old.Action, old.Target);
-                if (quickMode) HideToTray();
             }
             else
             {
@@ -618,7 +596,6 @@ internal sealed class LampikWindow : Window
         if (command is not null)
         {
             Schedule(command.Action, command.Target);
-            if (quickMode) HideToTray();
         }
     }
 
@@ -766,6 +743,8 @@ internal sealed class LampikWindow : Window
 
     void Restore()
     {
+        pet?.Hide();
+        pet?.Pause();
         Show();
         WindowState = WindowState.Normal;
         mascot?.ResumeAnimations();
@@ -775,11 +754,16 @@ internal sealed class LampikWindow : Window
 
     void HideToTray()
     {
-        quickMode = false;
+        RememberPosition();
         mascot?.PauseAnimations();
+        pet ??= new PetWindow(prefs, Restore, () => CancelTimer(true), OpenSettings, Quit,
+            (x, y) => { prefs.PetX = x; prefs.PetY = y;
+                try { SaveSettings(); } catch (IOException) { } catch (UnauthorizedAccessException) { } });
+        pet.UpdateLanguage(prefs.Language);
+        pet.Show();
+        pet.Resume();
+        RefreshMascot();
         Hide();
-        if (target is not null)
-            tray?.ShowBalloonTip(2400, T("trayActiveTitle"), T("trayActiveBody"), Forms.ToolTipIcon.Info);
     }
 
     void Quit()
@@ -796,6 +780,7 @@ internal sealed class LampikWindow : Window
     {
         if (!exiting) { e.Cancel = true; HideToTray(); return; }
         timer.Stop(); StopChord(); DismissWarning();
+        pet?.Close();
         foreach (int id in registeredIds) UnregisterHotKey(handle, id);
         tray?.Dispose();
         trayIcon?.Dispose();
@@ -891,7 +876,7 @@ internal sealed class LampikWindow : Window
         int id = wparam.ToInt32();
         if (id == ShowId)
         {
-            if (IsVisible && IsActive) HideToTray(); else ShowQuick();
+            TogglePet();
         }
         else if (id == CancelId) CancelTimer(true);
         else if (id == ChordId && pending is not null)

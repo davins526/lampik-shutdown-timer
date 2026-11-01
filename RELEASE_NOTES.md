@@ -1,16 +1,15 @@
-# Lampik v0.6.0-beta.1 — Safety and Quick Cancel
+# Lampik v0.7.0-beta.1 — Card & Pet
 
-**Pre-release · Windows 10/11 x64 · Russian / English**
+Pre-release · Windows 10/11 x64 · RU / EN
 
-## What's new / Что нового
-- **Large, prominent Cancel Timer button** remains visible in both the regular and compact window whenever a timer is active. No need to minimize Lampik or open the tray to cancel.
-- **Non-modal countdown warning** during the last 60 seconds with large **Cancel** and **+10 minutes** buttons. The dialog remains available even when the main window is hidden.
-- **Closing the countdown warning cancels** the scheduled power action.
-- **Safer execution policy:** if the machine wakes or the app resumes more than five seconds after the scheduled deadline, the power action is discarded rather than performed late.
-- Bilingual labels for the warning and delay actions.
-- Additional automated tests for warning timing, snooze, late execution and WPF warning construction.
+- Единственное основное окно — компактная glass-карточка 310 × 248 DIP (303 DIP с активным таймером). Старый большой экран удалён.
+- Быстрые кнопки 15 мин / 30 мин / 1 час / 2 часа в один ряд по ширине карточки.
+- Крупная кнопка отмены активного или ожидающего восстановления таймера.
+- Pet Mode: анимированная светящаяся лампочка без панели, рамки и фона, всегда поверх окон. Нативная область ввода пропускает клики вокруг лампочки в другие приложения.
+- Перетаскивание с сохранением позиции, реакция на наведение, клик открывает карточку; правый клик — открыть, отменить, настройки, выход.
+- Ctrl+Alt+L переключает Card ↔ Pet. Esc и кнопки сворачивания оставляют питомца на рабочем столе. Автозапуск --tray тоже открывает Pet Mode.
+- Сохранены RU/EN, парсер команд, глобальные сочетания, таймеры, автозапуск, безопасное подтверждаемое восстановление, предупреждение за минуту с отменой и +10 минут, собственная иконка.
 
-## Safety notes
-The regular text command and hotkey workflows remain available. Windows shutdown still uses `shutdown.exe` without `/f`; save unsaved work before testing.
+Portable Lampik.exe включает .NET; Lampik-Setup-0.7.0-beta.1-win-x64.exe — установщик для текущего пользователя.
 
-Automated Windows compilation and tests are required before this pre-release is published. Manual Windows testing of sleep, hibernation, installer removal and 100/125/150% DPI is still necessary.
+Validation: local Windows Release build and 56 automated checks, including native pet input region and menu routing. Real Main Card reviewed with an active 30-minute timer and cancellation. CI is required before publication. Full multi-monitor/mixed-DPI, physical sleep/hibernate, and installer uninstall testing remain manual checks. Edge snapping is not enabled in this beta.
