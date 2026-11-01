@@ -89,6 +89,7 @@ internal static class Commands
         command = null;
         response = "";
         text = text.ToLowerInvariant().Replace('ё', 'е').Trim();
+        if (Regex.IsMatch(text, @"восстанов|\b(restore|resume)\b")) { response = "restore"; return true; }
         if (Regex.IsMatch(text, @"отмен|сброс|стоп|не надо|\b(cancel|stop|abort)\b"))
         {
             response = "cancel";
