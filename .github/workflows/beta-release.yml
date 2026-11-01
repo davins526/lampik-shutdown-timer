@@ -52,17 +52,17 @@ jobs:
           $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
           & $compiler installer\Lampik.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (!(Test-Path release-installer/Lampik-Setup-0.7.0-beta.1-win-x64.exe)) {
+          if (!(Test-Path release-installer/Lampik-Setup-0.7.0-beta.2-win-x64.exe)) {
             throw 'Setup EXE was not produced'
           }
 
       - name: Save build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Lampik-v0.7.0-beta.1-win-x64
+          name: Lampik-v0.7.0-beta.2-win-x64
           path: |
             release/Lampik.exe
-            release-installer/Lampik-Setup-0.7.0-beta.1-win-x64.exe
+            release-installer/Lampik-Setup-0.7.0-beta.2-win-x64.exe
           if-no-files-found: error
           retention-days: 30
 
@@ -71,10 +71,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'v0.7.0-beta.1'
+          $tag = 'v0.7.0-beta.2'
           $assets = @(
             'release/Lampik.exe',
-            'release-installer/Lampik-Setup-0.7.0-beta.1-win-x64.exe'
+            'release-installer/Lampik-Setup-0.7.0-beta.2-win-x64.exe'
           )
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {

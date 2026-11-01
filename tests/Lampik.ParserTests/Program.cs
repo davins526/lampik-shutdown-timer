@@ -152,6 +152,22 @@ var petThread = new System.Threading.Thread(() =>
                 "Bulb body remains clickable");
         }
         finally { NativeRegion.DeleteObject(region); }
+        foreach (double scale in new[] { .5, .75, 1.0 })
+        {
+            pet.SetScale(scale);
+            Check(Math.Abs(pet.Width - 220 * scale) < 1 && Math.Abs(pet.Height - 145 * scale) < 1,
+                $"Pet surface resized at {scale}: {pet.Width}x{pet.Height}");
+            var resized = NativeRegion.CreateRectRgn(0, 0, 0, 0);
+            try
+            {
+                NativeRegion.GetWindowRgn(handle, resized);
+                var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(pet);
+                Check(NativeRegion.PtInRegion(resized, (int)(110 * scale * dpi.DpiScaleX), (int)(70 * scale * dpi.DpiScaleY)),
+                    $"Scaled bulb remains clickable at {scale}");
+                Check(!NativeRegion.PtInRegion(resized, 0, 0), $"Scaled corner passes clicks at {scale}");
+            }
+            finally { NativeRegion.DeleteObject(resized); }
+        }
         pet.UpdateLanguage("ru");
         var open = (System.Windows.Controls.MenuItem)pet.ContextMenu.Items[0];
         Check((string)open.Header == I18n.T("ru", "open"), "Pet menu Russian");
@@ -168,6 +184,19 @@ var petThread = new System.Threading.Thread(() =>
 petThread.SetApartmentState(System.Threading.ApartmentState.STA);
 petThread.Start(); petThread.Join();
 if (petError is not null) throw new Exception("Pet smoke test failed", petError);
+Check(PetWindow.NormalizeScale(double.NaN) == .75, "Invalid scale defaults safely");
+Check(PetWindow.NormalizeScale(.1) == .5 && PetWindow.NormalizeScale(5) == 1, "Scale limits enforced");
+Check(System.Text.Json.JsonSerializer.Deserialize<Preferences>("{}")!.PetScale == .75, "Old settings default to smaller pet");
+var sizePrefs = new Preferences { PetScale = .5 };
+Check(System.Text.Json.JsonSerializer.Deserialize<Preferences>(System.Text.Json.JsonSerializer.Serialize(sizePrefs))!.PetScale == .5,
+    "Pet size survives preferences round trip");
+int startupCalls = 0;
+Check(WindowsAutoStart.TryApplyChange(false, false, _ => startupCalls++, out var startupEffective) &&
+    startupCalls == 0 && !startupEffective, "Unchanged startup never touches registry");
+Check(WindowsAutoStart.TryApplyChange(false, true, _ => startupCalls++, out startupEffective) &&
+    startupCalls == 1 && startupEffective, "Startup change is applied explicitly");
+Check(!WindowsAutoStart.TryApplyChange(true, false, _ => throw new UnauthorizedAccessException(), out startupEffective) &&
+    startupEffective, "Denied startup preserves previous state");
 Console.WriteLine($"All {count} checks passed.");
 
 internal static class NativeRegion
