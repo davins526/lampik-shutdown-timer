@@ -5,3 +5,4 @@ release/
 release-installer/
 *.user
 *.suo
+release-review/

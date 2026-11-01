@@ -1,6 +1,8 @@
 name: Validate Windows and language commands
 
 on:
+  push:
+    branches: ["feat/**"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -21,3 +23,10 @@ jobs:
         run: dotnet build Lampik/Lampik.csproj -c Release
       - name: Run bilingual command smoke tests
         run: dotnet run --project tests/Lampik.ParserTests/Lampik.ParserTests.csproj -c Release
+      - name: Verify self-contained portable publish
+        run: dotnet publish Lampik/Lampik.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Lampik-portable-validation
+          path: release/Lampik.exe
+          if-no-files-found: error
