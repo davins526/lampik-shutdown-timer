@@ -86,3 +86,30 @@ Check(TimerPersistence.Evaluate(new TimerSnapshot { Active = false }, now.ToUniv
 Check(TimerPersistence.Evaluate(new TimerSnapshot { Active = true, Action = PowerAction.Shutdown, DueUtc = now.ToUniversalTime().AddDays(40) }, now.ToUniversalTime()).Expired, "Invalid recovery horizon blocked");
 Check(WindowsAutoStart.CommandFor(@"C:\Program Files\Lampik\Lampik.exe").Contains(" --tray"), "Autostart uses tray mode");
 Check(I18n.T("ru", "autostart") != I18n.T("en", "autostart"), "Autostart setting is localized");
+
+Check(TimerSafety.ShouldWarn(now.AddSeconds(59), now), "Warning appears at T-59 seconds");
+Check(!TimerSafety.ShouldWarn(now.AddMinutes(2), now), "No warning before final minute");
+Check(TimerSafety.ShouldExecute(now, now.AddSeconds(1)), "On-time action allowed");
+Check(!TimerSafety.ShouldExecute(now, now.AddSeconds(8)), "Late wake-up never powers off");
+Check(TimerSafety.IsExpired(now, now.AddSeconds(8)), "Late wake-up detected");
+Check(TimerSafety.Snooze(now) == now.AddMinutes(10), "Snooze extends by exactly ten minutes");
+Check(I18n.T("ru", "cancelTimer") != I18n.T("en", "cancelTimer"), "Large cancel button bilingual");
+Check(I18n.T("ru", "snoozeTen") != I18n.T("en", "snoozeTen"), "Snooze button bilingual");
+
+// Build the new dialog without displaying it; tests run on a headless Windows runner.
+Exception? warningError = null;
+var warningThread = new System.Threading.Thread(() =>
+{
+    try
+    {
+        var warning = new PowerWarningWindow("ru", PowerAction.Shutdown, () => { }, () => { });
+        Check(warning.Content is not null, "Power warning glass dialog created");
+        warning.UpdateRemaining(TimeSpan.FromSeconds(29));
+        warning.Dismiss();
+    }
+    catch (Exception exception) { warningError = exception; }
+});
+warningThread.SetApartmentState(System.Threading.ApartmentState.STA);
+warningThread.Start();
+warningThread.Join();
+if (warningError is not null) throw new Exception("Power warning smoke test failed", warningError);
