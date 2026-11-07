@@ -40,7 +40,7 @@ try {
 }
 
 $startupKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-if (Get-ItemPropertyValue -Path $startupKey -Name Lampik -ErrorAction SilentlyContinue) {
+if ((Test-Path $startupKey) -and ((Get-Item $startupKey).GetValueNames() -contains 'Lampik')) {
     throw 'Unexpected existing Lampik startup entry on runner.'
 }
 if (-not (Test-Path $startupKey)) { New-Item -Path $startupKey | Out-Null }
@@ -51,7 +51,7 @@ Invoke-Installer $uninstaller[0].FullName @('/VERYSILENT', '/SUPPRESSMSGBOXES', 
 $deadline = (Get-Date).AddSeconds(15)
 while ((Test-Path $installedExe) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 200 }
 if (Test-Path $installedExe) { throw 'Uninstall left the application executable.' }
-if (Get-ItemPropertyValue -Path $startupKey -Name Lampik -ErrorAction SilentlyContinue) {
+if ((Test-Path $startupKey) -and ((Get-Item $startupKey).GetValueNames() -contains 'Lampik')) {
     throw 'Uninstall left the installed app startup entry.'
 }
 if ((Get-Content $settings -Raw) -ne $before) { throw 'Uninstall modified the profile.' }
