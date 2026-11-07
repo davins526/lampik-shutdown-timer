@@ -36,6 +36,7 @@ internal static class I18n
         ["restorePrompt"] = ("Найден сохранённый таймер. Напиши «восстанови», чтобы продолжить, или «отмени».", "Saved timer found. Type “restore” to resume, or “cancel”."),
         ["restoreExpired"] = ("Старый таймер просрочен и не запущен.", "Expired timer discarded; no power action started."),
         ["persistFailed"] = ("Не удалось сохранить таймер на диск.", "Could not save timer to disk."),
+        ["hotkeysUnavailable"] = ("Сочетания недоступны: {0}", "Unavailable shortcuts: {0}"),
         ["hotkeyConflict"] = ("Сочетания конфликтуют. Измени клавиши.", "Keyboard shortcuts conflict. Choose different keys."),
         ["onTop"] = ("Поверх всех окон", "Always on top"),
         ["hotkeys"] = ("Глобальные горячие клавиши", "Global keyboard shortcuts"),

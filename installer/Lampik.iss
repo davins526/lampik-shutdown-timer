@@ -1,5 +1,5 @@
 #define MyAppName "Lampik"
-#define MyAppVersion "0.7.0-beta.2"
+#define MyAppVersion "1.0.0-rc.1"
 #define MyAppPublisher "Daniil Goncharov"
 #define MyAppExeName "Lampik.exe"
 
@@ -13,7 +13,7 @@ DefaultDirName={localappdata}\Programs\Lampik
 DefaultGroupName={#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
 OutputDir=..\release-installer
-OutputBaseFilename=Lampik-Setup-0.7.0-beta.2-win-x64
+OutputBaseFilename=Lampik-Setup-1.0.0-rc.1-win-x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -47,3 +47,16 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  StartupCommand: String;
+begin
+  if CurUninstallStep <> usUninstall then
+    Exit;
+  if RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run',
+      'Lampik', StartupCommand) and
+      (CompareText(StartupCommand, '"' + ExpandConstant('{app}\Lampik.exe') + '" --tray') = 0) then
+    RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'Lampik');
+end;

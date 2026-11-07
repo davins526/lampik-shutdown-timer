@@ -36,8 +36,27 @@ internal static class Program
     [STAThread]
     public static void Main()
     {
+        using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+        string instanceName = @"Local\Lampik." + identity.User!.Value;
+        using var activation = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset,
+            instanceName + ".Activate");
+        using var instance = new System.Threading.Mutex(false, instanceName);
+        bool primary;
+        try { primary = instance.WaitOne(0); }
+        catch (System.Threading.AbandonedMutexException) { primary = true; }
+        if (!primary)
+        {
+            activation.Set();
+            return;
+        }
+
         var application = new System.Windows.Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
-        application.Run(new LampikWindow());
+        var window = new LampikWindow();
+        var wait = System.Threading.ThreadPool.RegisterWaitForSingleObject(activation,
+            (_, _) => window.Dispatcher.BeginInvoke(new Action(window.Restore)), null,
+            System.Threading.Timeout.Infinite, executeOnlyOnce: false);
+        try { application.Run(window); }
+        finally { wait.Unregister(null); instance.ReleaseMutex(); }
     }
 }
 
@@ -237,6 +256,7 @@ internal sealed class LampikWindow : Window
     Button? mainCancelButton;
     PowerWarningWindow? warningWindow;
     TextBlock? messageLabel, countdownLabel;
+    string[] unavailableHotkeys = [];
     readonly string settingsFile = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lampik", "settings.json");
 
@@ -247,6 +267,7 @@ internal sealed class LampikWindow : Window
     {
         try { prefs = JsonSerializer.Deserialize<Preferences>(File.ReadAllText(settingsFile)) ?? new Preferences(); }
         catch { prefs = new Preferences(); }
+        prefs.StartWithWindows = WindowsAutoStart.ReadEnabled() ?? prefs.StartWithWindows;
         prefs.Hotkeys ??= Preferences.Defaults();
         prefs.Language = I18n.Language(prefs.Language);
         var recovery = TimerPersistence.Load(DateTime.UtcNow);
@@ -715,6 +736,11 @@ internal sealed class LampikWindow : Window
         if (tray is null) return;
         var old = tray.ContextMenuStrip;
         var menu = new Forms.ContextMenuStrip();
+        if (unavailableHotkeys.Length != 0)
+        {
+            menu.Items.Add(T("hotkeysUnavailable", string.Join(", ", unavailableHotkeys))).Enabled = false;
+            menu.Items.Add(new Forms.ToolStripSeparator());
+        }
         menu.Items.Add(T("open"), null, (_, _) => Dispatcher.Invoke(Restore));
         menu.Items.Add(T("cancelTimer"), null, (_, _) => Dispatcher.Invoke(() => CancelTimer(true)));
         menu.Items.Add(T("settings"), null, (_, _) => Dispatcher.Invoke(OpenSettings));
@@ -724,7 +750,7 @@ internal sealed class LampikWindow : Window
         old?.Dispose();
     }
 
-    void Restore()
+    internal void Restore()
     {
         pet?.Hide();
         pet?.Pause();
@@ -806,7 +832,6 @@ internal sealed class LampikWindow : Window
         Topmost = prefs.AlwaysOnTop;
         Title = T("title");
         RegisterHotkeys();
-        UpdateTrayMenu();
         Rebuild();
         FocusInput();
     }
@@ -819,25 +844,44 @@ internal sealed class LampikWindow : Window
         registeredIds.Clear(); registered.Clear();
 
         var firstStrokes = new HashSet<Stroke>();
+        var unavailable = new List<string>();
+        bool TryRegister(int id, string shortcut, Stroke stroke)
+        {
+            if (!firstStrokes.Add(stroke) || !RegisterHotKey(handle, id, stroke.Modifiers, stroke.Key))
+            {
+                unavailable.Add(shortcut);
+                return false;
+            }
+            registeredIds.Add(id);
+            return true;
+        }
+
         void Fixed(int id, string shortcut)
         {
-            if (KeySyntax.Parse(shortcut, out var s) && RegisterHotKey(handle, id,
-                s[0].Modifiers, s[0].Key)) { registeredIds.Add(id); firstStrokes.Add(s[0]); }
+            if (KeySyntax.Parse(shortcut, out var strokes)) TryRegister(id, shortcut, strokes[0]);
         }
+
         Fixed(ShowId, "Ctrl+Alt+L");
         Fixed(CancelId, "Ctrl+Alt+X");
         for (int i = 0; i < prefs.Hotkeys.Count; i++)
         {
-            var p = prefs.Hotkeys[i];
-            if (!p.Enabled || !KeySyntax.Parse(p.Shortcut, out var s)) continue;
-            if (firstStrokes.Contains(s[0])) { message = T("hotkeyConflict"); Refresh(); continue; }
-            firstStrokes.Add(s[0]);
-            int id = 2000 + i;
-            if (RegisterHotKey(handle, id, s[0].Modifiers, s[0].Key))
+            var preset = prefs.Hotkeys[i];
+            if (!preset.Enabled) continue;
+            if (!KeySyntax.Parse(preset.Shortcut, out var strokes))
             {
-                registeredIds.Add(id); registered[id] = (p, s);
+                unavailable.Add(preset.Shortcut);
+                continue;
             }
+            int id = 2000 + i;
+            if (TryRegister(id, preset.Shortcut, strokes[0]))
+                registered[id] = (preset, strokes);
         }
+
+        unavailableHotkeys = unavailable.ToArray();
+        UpdateTrayMenu();
+        if (unavailableHotkeys.Length != 0)
+            tray?.ShowBalloonTip(5000, T("hotkeys"),
+                T("hotkeysUnavailable", string.Join(", ", unavailableHotkeys)), Forms.ToolTipIcon.Warning);
     }
 
     void StartChord(KeyPreset preset, Stroke second)
