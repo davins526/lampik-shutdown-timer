@@ -23,6 +23,17 @@ internal static class WindowsAutoStart
         { return false; }
     }
 
+    internal static bool? ReadEnabled()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(KeyPath);
+            return key?.GetValue(ValueName) is string { Length: > 0 };
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        { return null; }
+    }
+
     public static void Apply(bool enabled)
     {
         using var key = Registry.CurrentUser.CreateSubKey(KeyPath, writable: true)

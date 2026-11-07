@@ -267,6 +267,7 @@ internal sealed class LampikWindow : Window
     {
         try { prefs = JsonSerializer.Deserialize<Preferences>(File.ReadAllText(settingsFile)) ?? new Preferences(); }
         catch { prefs = new Preferences(); }
+        prefs.StartWithWindows = WindowsAutoStart.ReadEnabled() ?? prefs.StartWithWindows;
         prefs.Hotkeys ??= Preferences.Defaults();
         prefs.Language = I18n.Language(prefs.Language);
         var recovery = TimerPersistence.Load(DateTime.UtcNow);

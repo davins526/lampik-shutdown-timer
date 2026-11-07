@@ -39,9 +39,20 @@ try {
     if (-not $first.HasExited) { $first.Kill(); $first.WaitForExit() }
 }
 
+$startupKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+if (Get-ItemPropertyValue -Path $startupKey -Name Lampik -ErrorAction SilentlyContinue) {
+    throw 'Unexpected existing Lampik startup entry on runner.'
+}
+if (-not (Test-Path $startupKey)) { New-Item -Path $startupKey | Out-Null }
+Set-ItemProperty -Path $startupKey -Name Lampik -Value ('"{0}" --tray' -f $installedExe)
 $uninstaller = @(Get-ChildItem -LiteralPath $installDir -Filter 'unins*.exe')
 if ($uninstaller.Count -ne 1) { throw 'Expected one uninstaller after upgrade.' }
 Invoke-Installer $uninstaller[0].FullName @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')
+$deadline = (Get-Date).AddSeconds(15)
+while ((Test-Path $installedExe) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 200 }
 if (Test-Path $installedExe) { throw 'Uninstall left the application executable.' }
+if (Get-ItemPropertyValue -Path $startupKey -Name Lampik -ErrorAction SilentlyContinue) {
+    throw 'Uninstall left the installed app startup entry.'
+}
 if ((Get-Content $settings -Raw) -ne $before) { throw 'Uninstall modified the profile.' }
 Write-Host 'Upgrade, shared single instance and uninstall passed.'
