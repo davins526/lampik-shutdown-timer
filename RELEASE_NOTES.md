@@ -1,4 +1,7 @@
-# Lampik v0.7.0-beta.2 — Card & Pet
+# Lampik v1.0.0-rc.1
+
+- Повторный запуск открывает карточку уже работающего Лампика.
+- При конфликте глобальных сочетаний приложение показывает недоступные клавиши в уведомлении и меню трея.
 
 Pre-release · Windows 10/11 x64 · RU / EN
 
@@ -17,6 +20,6 @@ Pre-release · Windows 10/11 x64 · RU / EN
 - Ctrl+Alt+L переключает Card ↔ Pet. Esc и кнопки сворачивания оставляют питомца на рабочем столе. Автозапуск --tray тоже открывает Pet Mode.
 - Сохранены RU/EN, парсер команд, глобальные сочетания, таймеры, автозапуск, безопасное подтверждаемое восстановление, предупреждение за минуту с отменой и +10 минут, собственная иконка.
 
-Portable Lampik.exe включает .NET; Lampik-Setup-0.7.0-beta.2-win-x64.exe — установщик для текущего пользователя.
+Portable Lampik.exe включает .NET; Lampik-Setup-1.0.0-rc.1-win-x64.exe — установщик для текущего пользователя.
 
-Validation: local Windows Release build and 72 automated checks, including native pet input region and menu routing. Real Main Card reviewed with an active 30-minute timer and cancellation. CI is required before publication. Full multi-monitor/mixed-DPI, physical sleep/hibernate, and installer uninstall testing remain manual checks. Edge snapping is not enabled in this beta.
+До стабильной версии остаётся ручная проверка на Windows 10 и 11: вход после включения автозапуска, занятый хоткей, смена масштаба и отключение монитора, реальные действия питания, предупреждение, отмена и продление таймера.
